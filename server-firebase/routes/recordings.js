@@ -27,30 +27,53 @@ const upload = multer({
   },
 });
 
-router.post('/', upload.single('audio'), async (req, res) => {
+router.post('/', (req, res, next) => {
+  upload.single('audio')(req, res, (err) => {
+    if (err) {
+      console.error('Multer 錯誤:', err);
+      return res.status(400).json({ error: err.message || '只接受 webm 音檔' });
+    }
+    next();
+  });
+}, async (req, res) => {
+  let responseSent = false;
+  const sendError = (status, message) => {
+    if (responseSent) return;
+    responseSent = true;
+    res.status(status).json({ error: message });
+  };
+  const sendSuccess = (data) => {
+    if (responseSent) return;
+    responseSent = true;
+    res.status(201).json(data);
+  };
+
   try {
-    if (!req.file) return res.status(400).json({ error: '未收到音檔' });
-    
+    if (!req.file) return sendError(400, '未收到音檔');
+
     const filename = `${uuidv4()}.webm`;
-    const bucket = storage.bucket();
+    let bucket;
+    try {
+      bucket = storage.bucket();
+    } catch (storageErr) {
+      console.error('Storage bucket 錯誤:', storageErr);
+      return sendError(500, '儲存服務未就緒');
+    }
     const file = bucket.file(`recordings/${filename}`);
-    
-    // 上傳到 Firebase Storage
+
     const stream = file.createWriteStream({
-      metadata: {
-        contentType: 'audio/webm',
-      },
+      metadata: { contentType: 'audio/webm' },
     });
-    
+
     stream.on('error', (error) => {
-      console.error('上傳錯誤:', error);
-      res.status(500).json({ error: '上傳失敗' });
+      console.error('Storage 上傳錯誤:', error);
+      sendError(500, '上傳失敗: ' + (error.message || '儲存服務錯誤'));
     });
-    
+
     stream.on('finish', async () => {
       try {
         const id = await createRecording(req.user.id, filename);
-        res.status(201).json({
+        sendSuccess({
           id,
           filename,
           audioUrl: `/storage/${filename}`,
@@ -58,19 +81,22 @@ router.post('/', upload.single('audio'), async (req, res) => {
         });
       } catch (error) {
         console.error('創建記錄錯誤:', error);
-        res.status(500).json({ error: '創建記錄失敗' });
+        sendError(500, '創建記錄失敗: ' + (error.message || String(error)));
       }
     });
-    
+
     stream.end(req.file.buffer);
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: '上傳失敗' });
+    console.error('錄音上傳異常:', e);
+    sendError(500, '上傳失敗: ' + (e.message || String(e)));
   }
 });
 
 router.get('/', async (req, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: '未登入' });
+    }
     const userId = req.query.userId;
     const userRole = req.user.role;
     

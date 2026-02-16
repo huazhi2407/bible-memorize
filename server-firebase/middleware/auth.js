@@ -17,17 +17,19 @@ export function authMiddleware(req, res, next) {
   if (!token) {
     return res.status(401).json({ error: '未登入' });
   }
-  (async () => {
-    try {
+  Promise.resolve()
+    .then(() => {
       const payload = jwt.verify(token, JWT_SECRET);
-      const user = await findUserById(payload.userId);
-      if (!user) return res.status(401).json({ error: '使用者不存在' });
+      return findUserById(payload.userId);
+    })
+    .then((user) => {
+      if (!user) throw new Error('使用者不存在');
       req.user = user;
       next();
-    } catch (e) {
-      return res.status(401).json({ error: '登入已過期或無效' });
-    }
-  })();
+    })
+    .catch((e) => {
+      if (!res.headersSent) res.status(401).json({ error: '登入已過期或無效' });
+    });
 }
 
 export function adminOnly(req, res, next) {

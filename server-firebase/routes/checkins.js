@@ -38,6 +38,9 @@ router.post('/', async (req, res) => {
 
 router.get('/', async (req, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: '未登入' });
+    }
     const year = req.query.year ? Number(req.query.year) : new Date().getFullYear();
     const week = req.query.week ? Number(req.query.week) : getISOWeek(new Date());
     const dates = await getCheckinsForWeek(req.user.id, year, week);

@@ -87,6 +87,14 @@ app.use('/api/scripture-plans', scripturePlansRouter);
 app.use('/api/approvals', approvalsRouter);
 app.use('/api/points', pointsRouter);
 
+// 全局錯誤處理（捕獲未處理的錯誤）
+app.use((err, req, res, next) => {
+  console.error('未處理的錯誤:', err);
+  if (!res.headersSent) {
+    res.status(500).json({ error: '伺服器錯誤: ' + (err.message || String(err)) });
+  }
+});
+
 // 初始化數據庫和預設管理員
 async function start() {
   try {
