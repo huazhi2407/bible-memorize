@@ -1,0 +1,18 @@
+# Render Blueprint：一鍵部署
+# 到 https://dashboard.render.com 選 New > Blueprint，連動此 repo 即可
+
+services:
+  - type: web
+    name: bible-memorize
+    runtime: node
+    region: singapore
+
+    buildCommand: npm run build
+    startCommand: npm run start
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # 必填：把 Google 服務帳戶 JSON 整份貼上（單行）
+      - key: GOOGLE_CREDENTIALS_JSON
+        sync: false

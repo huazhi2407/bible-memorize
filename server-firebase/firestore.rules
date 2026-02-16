@@ -1,0 +1,92 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ============================================
+    // 生產環境推薦規則：拒絕所有直接訪問
+    // 所有操作必須通過後端 API（使用 Admin SDK）
+    // ============================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    // ============================================
+    // 開發/測試模式規則（取消註釋以使用）
+    // 如果需要直接從客戶端訪問 Firestore，取消以下註釋
+    // ============================================
+    
+    // 輔助函數：檢查用戶是否已登入
+    // function isAuthenticated() {
+    //   return request.auth != null;
+    // }
+    // 
+    // 輔助函數：獲取用戶文檔
+    // function getUserData() {
+    //   return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    // }
+    // 
+    // 輔助函數：檢查是否為管理員
+    // function isAdmin() {
+    //   return isAuthenticated() && getUserData().role == 'admin';
+    // }
+    // 
+    // 輔助函數：檢查是否為老師或家長
+    // function isTeacherOrParent() {
+    //   return isAuthenticated() && 
+    //          (getUserData().role == 'teacher' || getUserData().role == 'parent');
+    // }
+    // 
+    // // 用戶集合
+    // match /users/{userId} {
+    //   allow read: if isAuthenticated() && 
+    //                  (request.auth.uid == userId || isAdmin() || isTeacherOrParent());
+    //   allow write: if isAdmin();
+    // }
+    // 
+    // // 錄音集合
+    // match /recordings/{recordingId} {
+    //   allow read: if isAuthenticated() && 
+    //                  (resource.data.user_id == request.auth.uid || 
+    //                   isAdmin() || 
+    //                   isTeacherOrParent());
+    //   allow create: if isAuthenticated() && 
+    //                    request.resource.data.user_id == request.auth.uid;
+    //   allow delete: if isAuthenticated() && 
+    //                    (resource.data.user_id == request.auth.uid || isAdmin());
+    // }
+    // 
+    // // 簽到集合
+    // match /checkins/{checkinId} {
+    //   allow read: if isAuthenticated() && 
+    //                  (resource.data.user_id == request.auth.uid || 
+    //                   isAdmin() || 
+    //                   isTeacherOrParent());
+    //   allow create: if isAuthenticated() && 
+    //                    request.resource.data.user_id == request.auth.uid;
+    // }
+    // 
+    // // 經文計劃集合
+    // match /scripture_plans/{planId} {
+    //   allow read: if isAuthenticated();
+    //   allow write: if isAdmin();
+    // }
+    // 
+    // // 確認集合
+    // match /approvals/{approvalId} {
+    //   allow read: if isAuthenticated() && 
+    //                  (resource.data.student_id == request.auth.uid || 
+    //                   isAdmin() || 
+    //                   isTeacherOrParent());
+    //   allow create: if isAdmin() || isTeacherOrParent();
+    // }
+    // 
+    // // 積分歷史集合
+    // match /points_history/{historyId} {
+    //   allow read: if isAuthenticated() && 
+    //                  (resource.data.user_id == request.auth.uid || 
+    //                   isAdmin() || 
+    //                   isTeacherOrParent());
+    //   allow write: if false; // 只能通過後端 API
+    // }
+  }
+}

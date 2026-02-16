@@ -1,0 +1,9 @@
+node_modules
+server
+electron
+dist-electron
+*.log
+.env
+.env.local
+server/data
+server/storage

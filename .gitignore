@@ -1,0 +1,14 @@
+node_modules/
+.env
+.env.local
+server/google-credentials.json
+server/bible-memorizie-*.json
+server/storage/
+server/temp/
+server/data/
+server-firebase/.env
+server-firebase/firebase-service-account.json
+client/dist/
+dist-electron/
+*.log
+.DS_Store

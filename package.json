@@ -1,0 +1,76 @@
+{
+  "name": "bible-memorize",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install",
+    "build": "npm run install:all && cd client && npm run build",
+    "start": "cd server && npx cross-env NODE_ENV=production node index.js",
+    "electron": "electron .",
+    "electron:dev": "concurrently \"npm run dev:server\" \"wait-on http://localhost:3001 && electron .\"",
+    "electron:build": "npm run build && electron-builder",
+    "electron:build:win": "npm run build && electron-builder --win",
+    "electron:build:mac": "npm run build && electron-builder --mac",
+    "electron:build:linux": "npm run build && electron-builder --linux"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.biblememorize.app",
+    "productName": "經文背誦",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "server/**/*",
+      "client/dist/**/*",
+      "electron/**/*",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "icon": "build/icon.icns"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
