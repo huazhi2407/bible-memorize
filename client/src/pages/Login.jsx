@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
+const API_BASE = import.meta.env.VITE_API_BASE || '';
+
 export default function Login() {
   const [nameOrNumber, setNameOrNumber] = useState('');
   const [password, setPassword] = useState('');
@@ -17,17 +19,37 @@ export default function Login() {
       ? { number: nameOrNumber.trim(), password }
       : { name: nameOrNumber.trim(), password };
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(API_BASE + '/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '登入失敗');
+      
+      // 檢查響應是否為空
+      const text = await res.text();
+      if (!text) {
+        throw new Error('伺服器無響應，請檢查後端是否正在運行');
+      }
+      
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        throw new Error(`伺服器響應格式錯誤: ${text.substring(0, 100)}`);
+      }
+      
+      if (!res.ok) {
+        throw new Error(data.error || '登入失敗');
+      }
+      
+      if (!data.user || !data.token) {
+        throw new Error('響應數據不完整');
+      }
+      
       login(data.user, data.token);
       navigate('/', { replace: true });
     } catch (err) {
-      setError(err.message);
+      setError(err.message || '登入失敗，請檢查網絡連接');
     }
   };
 

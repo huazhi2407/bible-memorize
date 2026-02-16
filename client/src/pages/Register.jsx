@@ -20,18 +20,39 @@ export default function Register() {
       return;
     }
     try {
-      const res = await fetch('/api/auth/register', {
+      const API_BASE = import.meta.env.VITE_API_BASE || '';
+      const res = await fetch(API_BASE + '/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name.trim(), password, role }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '註冊失敗');
+      
+      // 檢查響應是否為空
+      const text = await res.text();
+      if (!text) {
+        throw new Error('伺服器無響應，請檢查後端是否正在運行');
+      }
+      
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        throw new Error(`伺服器響應格式錯誤: ${text.substring(0, 100)}`);
+      }
+      
+      if (!res.ok) {
+        throw new Error(data.error || '註冊失敗');
+      }
+      
+      if (!data.user || !data.token) {
+        throw new Error('響應數據不完整');
+      }
+      
       setSuccess({ number: data.user.number, name: data.user.name });
       login(data.user, data.token);
       setTimeout(() => navigate('/', { replace: true }), 2500);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || '註冊失敗，請檢查網絡連接');
     }
   };
 
