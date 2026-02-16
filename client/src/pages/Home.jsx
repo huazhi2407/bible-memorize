@@ -165,18 +165,35 @@ export default function Home() {
     if (!recorder || status !== 'recording') return;
     recorder.stop();
     setStatus('uploading');
-    await new Promise((r) => { recorder.onstop = r; });
-    const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-    const form = new FormData();
-    form.append('audio', blob, 'recording.webm');
+    setError('');
     try {
+      await new Promise((r) => { recorder.onstop = r; });
+      const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+      if (blob.size === 0) {
+        throw new Error('錄音文件為空，請重新錄音');
+      }
+      const form = new FormData();
+      form.append('audio', blob, 'recording.webm');
       const res = await fetchWithAuth('/api/recordings', { method: 'POST', body: form });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '上傳失敗');
+      const text = await res.text();
+      if (!text) {
+        throw new Error('伺服器無響應，請檢查後端是否正在運行');
+      }
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        throw new Error(`伺服器響應格式錯誤: ${text.substring(0, 100)}`);
+      }
+      if (!res.ok) {
+        throw new Error(data.error || `上傳失敗 (${res.status})`);
+      }
       loadRecordings();
       setStatus('done');
+      setError('');
     } catch (err) {
-      setError(err.message || '上傳失敗');
+      console.error('上傳錯誤:', err);
+      setError(err.message || '上傳失敗，請檢查網絡連接');
       setStatus('error');
     }
   }, [status, fetchWithAuth, loadRecordings]);

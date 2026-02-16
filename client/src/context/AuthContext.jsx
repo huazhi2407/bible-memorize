@@ -32,8 +32,14 @@ export function AuthProvider({ children }) {
   const fetchWithAuth = useCallback((url, opts = {}) => {
     const headers = new Headers(opts.headers);
     if (token) headers.set('Authorization', `Bearer ${token}`);
+    // 只在 body 是字符串且沒有 Content-Type 時設置 JSON Content-Type
+    // FormData 會自動設置 multipart/form-data，不應該覆蓋
     if (!headers.has('Content-Type') && opts.body && typeof opts.body === 'string') {
       headers.set('Content-Type', 'application/json');
+    }
+    // 如果是 FormData，不要設置 Content-Type（讓瀏覽器自動設置）
+    if (opts.body instanceof FormData) {
+      headers.delete('Content-Type');
     }
     return fetch(API_BASE + url, { ...opts, headers }).then((res) => {
       if (res.status === 401) {
