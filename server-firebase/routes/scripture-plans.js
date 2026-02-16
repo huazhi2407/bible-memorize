@@ -2,6 +2,13 @@ import { Router } from 'express';
 import { authMiddleware, adminOnly } from '../middleware/auth.js';
 import { getScripturePlan, createOrUpdateScripturePlan, listScripturePlans } from '../db-firebase.js';
 
+function getISOWeek(d) {
+  d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
 const router = Router();
 
 router.get('/', authMiddleware, async (req, res) => {
@@ -22,8 +29,9 @@ router.get('/list', authMiddleware, adminOnly, async (req, res) => {
     const list = await listScripturePlans();
     res.json(list);
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: '取得列表失敗' });
+    console.error('取得經文列表失敗:', e);
+    console.error('錯誤詳情:', e.message, e.stack);
+    res.status(500).json({ error: '取得列表失敗: ' + (e.message || String(e)) });
   }
 });
 
@@ -40,12 +48,5 @@ router.post('/', authMiddleware, adminOnly, async (req, res) => {
     res.status(500).json({ error: '儲存失敗' });
   }
 });
-
-function getISOWeek(d) {
-  d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-}
 
 export { router as scripturePlansRouter };

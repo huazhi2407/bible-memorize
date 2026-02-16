@@ -89,8 +89,9 @@ router.get('/', async (req, res) => {
     
     res.json(list.map((r) => ({ ...r, audioUrl: `/storage/${r.filename}` })));
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: '取得錄音失敗' });
+    console.error('取得錄音失敗:', e);
+    console.error('錯誤詳情:', e.message, e.stack);
+    res.status(500).json({ error: '取得錄音失敗: ' + (e.message || String(e)) });
   }
 });
 

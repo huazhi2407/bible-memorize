@@ -2,6 +2,13 @@ import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
 import { addCheckin, getCheckinsForWeek, getCheckinsForUser, getApprovalForDate, adjustPoints, checkDailyPointsAdded } from '../db-firebase.js';
 
+function getISOWeek(d) {
+  d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
 const router = Router();
 router.use(authMiddleware);
 
@@ -36,8 +43,9 @@ router.get('/', async (req, res) => {
     const dates = await getCheckinsForWeek(req.user.id, year, week);
     res.json({ year, week, dates });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: '取得簽到失敗' });
+    console.error('取得簽到失敗:', e);
+    console.error('錯誤詳情:', e.message, e.stack);
+    res.status(500).json({ error: '取得簽到失敗: ' + (e.message || String(e)) });
   }
 });
 
@@ -50,12 +58,5 @@ router.get('/all', async (req, res) => {
     res.status(500).json({ error: '取得簽到失敗' });
   }
 });
-
-function getISOWeek(d) {
-  d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-}
 
 export { router as checkinsRouter };
