@@ -210,16 +210,34 @@ export default function Home() {
         throw new Error(data.error || `上傳失敗 (${res.status})`);
       }
       // 上傳成功後，立即將新錄音加入列表（避免等待載入）
-      if (data.id && data.audioUrl) {
-        setRecordings((prev) => [{
-          id: data.id,
-          filename: data.filename,
-          audioUrl: data.audioUrl,
-          created_at: data.createdAt || new Date().toISOString(),
-        }, ...prev]);
+      const newRecording = data.id && data.audioUrl ? {
+        id: data.id,
+        filename: data.filename,
+        audioUrl: data.audioUrl,
+        created_at: data.createdAt || new Date().toISOString(),
+      } : null;
+      if (newRecording) {
+        setRecordings((prev) => {
+          // 避免重複加入（如果已經存在）
+          if (prev.some((r) => r.id === newRecording.id)) return prev;
+          return [newRecording, ...prev];
+        });
       }
-      // 背景重新載入列表以確保同步
-      loadRecordings().catch(() => {});
+      // 延遲重新載入列表，給後端時間寫入（避免新錄音被移除）
+      setTimeout(() => {
+        loadRecordings().then((list) => {
+          if (Array.isArray(list)) {
+            setRecordings((prev) => {
+              // 合併列表：保留手動加入的新錄音，加入後端返回的
+              const merged = [...list];
+              if (newRecording && !merged.some((r) => r.id === newRecording.id)) {
+                merged.unshift(newRecording);
+              }
+              return merged;
+            });
+          }
+        }).catch(() => {});
+      }, 1000);
       chunksRef.current = [];
       mediaRecorderRef.current = null;
       setStatus('done');
