@@ -7,6 +7,7 @@ import {
   createRecording,
   getRecordingsByUser,
   getRecordingsByUserIds,
+  getAllRecordings,
   getRecordingById,
   deleteRecording as dbDeleteRecording,
   listStudents,
@@ -102,12 +103,15 @@ router.get('/', async (req, res) => {
     }
     const requestedUserId = req.query.userId;
     const userRole = req.user.role;
-    // 未帶 userId：一律只回傳「目前登入者」的錄音（每人只看得到自己的）
-    // 僅 admin/老師/家長 可帶 userId 查詢指定學生的錄音
     let list;
     if (requestedUserId && (userRole === 'admin' || userRole === 'teacher' || userRole === 'parent')) {
+      // 查詢指定學生的錄音
       list = await getRecordingsByUser(requestedUserId);
+    } else if (userRole === 'admin') {
+      // admin 不帶 userId：返回所有錄音（管理後台需要）
+      list = await getAllRecordings();
     } else {
+      // 其他角色：只返回自己的錄音
       list = await getRecordingsByUser(req.user.id);
     }
     res.json(list.map((r) => ({ ...r, audioUrl: `/storage/${r.filename}` })));

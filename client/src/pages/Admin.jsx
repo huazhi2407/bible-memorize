@@ -29,10 +29,14 @@ export default function Admin() {
     fetchWithAuth('/api/users').then((r) => r.json()).then(setUsers).catch(() => setUsers([]));
   }, [fetchWithAuth]);
   const loadRecordings = useCallback(() => {
-    if (user?.role === 'admin') {
-      fetchWithAuth('/api/recordings').then((r) => r.json()).then(setRecordings).catch(() => setRecordings([]));
-    } else if (user?.role === 'teacher' || user?.role === 'parent') {
-      fetchWithAuth('/api/recordings').then((r) => r.json()).then(setRecordings).catch(() => setRecordings([]));
+    if (user?.role === 'admin' || user?.role === 'teacher' || user?.role === 'parent') {
+      fetchWithAuth('/api/recordings')
+        .then((r) => {
+          if (!r.ok) return [];
+          return r.json();
+        })
+        .then((data) => setRecordings(Array.isArray(data) ? data : []))
+        .catch(() => setRecordings([]));
     }
   }, [fetchWithAuth, user]);
 
