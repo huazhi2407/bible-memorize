@@ -10,6 +10,7 @@ export default function Home() {
   const [recordings, setRecordings] = useState(() => []);
   const [checkinDates, setCheckinDates] = useState([]);
   const [weekYear, setWeekYear] = useState(() => {
+    if (typeof window === 'undefined') return { year: 0, week: 0 };
     const d = new Date();
     return { year: d.getFullYear(), week: getISOWeek(d) };
   });
@@ -19,8 +20,16 @@ export default function Home() {
   const [error, setError] = useState('');
   const [points, setPoints] = useState(0);
   const [studentsRanking, setStudentsRanking] = useState([]);
+  const [todayStr, setTodayStr] = useState('');
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
+
+  // 僅在瀏覽器掛載後設定「今天」與「本週」，避免 SSR/預渲染用伺服器 UTC 導致多一天
+  useEffect(() => {
+    const d = new Date();
+    setTodayStr(toLocalDateString(d));
+    setWeekYear((prev) => (prev.week === 0 ? { year: d.getFullYear(), week: getISOWeek(d) } : prev));
+  }, []);
 
   const loadRecordings = useCallback(() => {
     fetchWithAuth('/api/recordings')
@@ -33,6 +42,7 @@ export default function Home() {
   }, [fetchWithAuth]);
 
   const loadCheckins = useCallback(() => {
+    if (!weekYear.week) return;
     fetchWithAuth(`/api/checkins?year=${weekYear.year}&week=${weekYear.week}`)
       .then((r) => {
         if (!r.ok) return { dates: [] };
@@ -99,10 +109,9 @@ export default function Home() {
   useEffect(() => { loadStudentsRanking(); }, [loadStudentsRanking]);
   useEffect(() => { if (status === 'done') loadStudentsRanking(); }, [status, loadStudentsRanking]);
 
-  // 計算變數（需要在 useEffect 之前定義）
-  const todayStr = toLocalDateString(new Date());
-  const hasRecordingToday = Array.isArray(recordings) && recordings.some((r) => r.created_at && r.created_at.startsWith(todayStr));
-  const hasCheckedInToday = checkinDates.includes(todayStr);
+  // 計算變數（todayStr 由 useEffect 在客戶端設定）
+  const hasRecordingToday = todayStr && Array.isArray(recordings) && recordings.some((r) => r.created_at && r.created_at.startsWith(todayStr));
+  const hasCheckedInToday = todayStr && checkinDates.includes(todayStr);
   const isStudent = user?.role === 'student';
   const canCheckInToday = !isStudent && hasRecordingToday && !hasCheckedInToday;
 
@@ -226,7 +235,7 @@ export default function Home() {
       .then((r) => { if (r.ok) loadRecordings(); });
   }, [fetchWithAuth, loadRecordings]);
 
-  const weekDates = getWeekDates(weekYear.year, weekYear.week);
+  const weekDates = weekYear.week > 0 ? getWeekDates(weekYear.year, weekYear.week) : [];
   const prevWeek = () => {
     let { year, week } = weekYear;
     week--;
@@ -364,7 +373,9 @@ export default function Home() {
           ))}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.25rem' }}>
-          {weekDates.map((d) => {
+          {weekDates.length === 0 ? (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#8b949e', padding: '0.5rem' }}>載入週曆…</div>
+          ) : weekDates.map((d) => {
             const dateStr = toLocalDateString(d);
             const checked = checkinDates.includes(dateStr);
             const isToday = dateStr === todayStr;
