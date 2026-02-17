@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { storage } from '../firebase-config.js';
+import { storage, getStorageBucketName } from '../firebase-config.js';
 import { v4 as uuidv4 } from 'uuid';
 import { authMiddleware, adminOnly } from '../middleware/auth.js';
 import {
@@ -54,7 +54,8 @@ router.post('/', (req, res, next) => {
     const filename = `${uuidv4()}.webm`;
     let bucket;
     try {
-      bucket = storage.bucket();
+      const bucketName = getStorageBucketName();
+      bucket = storage.bucket(bucketName);
     } catch (storageErr) {
       console.error('Storage bucket 錯誤:', storageErr);
       return sendError(500, '儲存服務未就緒');
@@ -67,7 +68,8 @@ router.post('/', (req, res, next) => {
 
     stream.on('error', (error) => {
       console.error('Storage 上傳錯誤:', error);
-      sendError(500, '上傳失敗: ' + (error.message || '儲存服務錯誤'));
+      const msg = error.message || (error.code === 404 ? 'Storage 儲存區不存在，請在 Firebase Console 啟用 Storage' : '儲存服務錯誤');
+      sendError(500, '上傳失敗: ' + msg);
     });
 
     stream.on('finish', async () => {
@@ -138,7 +140,7 @@ router.delete('/:id', async (req, res) => {
     }
     
     // 刪除 Firebase Storage 中的文件
-    const bucket = storage.bucket();
+    const bucket = storage.bucket(getStorageBucketName());
     const file = bucket.file(`recordings/${rec.filename}`);
     await file.delete().catch(() => {}); // 忽略文件不存在的錯誤
     

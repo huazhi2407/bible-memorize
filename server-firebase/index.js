@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { initFirebase, storage } from './firebase-config.js';
+import { initFirebase, storage, getStorageBucketName } from './firebase-config.js';
 import { hasAnyUser, createUser, getRecordingByFilename } from './db-firebase.js';
 import { authMiddleware } from './middleware/auth.js';
 import { authRouter } from './routes/auth.js';
@@ -51,7 +51,7 @@ app.get('/storage/:filename', async (req, res) => {
     }
     
     const { filename } = req.params;
-    const bucket = storage.bucket();
+    const bucket = storage.bucket(getStorageBucketName());
     const file = bucket.file(`recordings/${filename}`);
     
     const [exists] = await file.exists();

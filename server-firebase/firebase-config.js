@@ -7,6 +7,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // 初始化 Firebase Admin SDK
 let initialized = false;
+let _storageBucketName = null;
 
 export function initFirebase() {
   if (initialized) return;
@@ -35,19 +36,24 @@ export function initFirebase() {
       }
     }
 
+    // Storage Bucket：環境變量 > .firebasestorage.app（新專案預設）> .appspot.com（舊專案預設）
+    const projectId = serviceAccount.project_id;
+    const storageBucket = process.env.FIREBASE_STORAGE_BUCKET ||
+      (projectId + '.firebasestorage.app');
+
     // 初始化 Firebase Admin SDK
-    // 注意：確保項目 ID 正確，並且 Firestore API 已啟用
+    // 注意：確保項目 ID 正確，Firestore 與 Storage 皆已啟用
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
-      storageBucket: serviceAccount.project_id + '.appspot.com',
-      // 明確指定項目 ID（雖然通常會自動從服務帳號獲取）
-      projectId: serviceAccount.project_id,
+      storageBucket,
+      projectId,
     });
 
     initialized = true;
+    _storageBucketName = storageBucket;
     console.log('Firebase Admin SDK 初始化成功');
-    console.log('項目 ID:', serviceAccount.project_id);
-    console.log('Storage Bucket:', serviceAccount.project_id + '.appspot.com');
+    console.log('項目 ID:', projectId);
+    console.log('Storage Bucket:', storageBucket);
   } catch (error) {
     console.error('Firebase 初始化失敗:', error);
     throw error;
@@ -68,6 +74,14 @@ export function getStorage() {
     throw new Error('Firebase 尚未初始化，請先調用 initFirebase()');
   }
   return admin.storage();
+}
+
+/** 取得目前設定的 Storage bucket 名稱（用於明確指定 bucket） */
+export function getStorageBucketName() {
+  if (!initialized || !_storageBucketName) {
+    throw new Error('Firebase 尚未初始化，請先調用 initFirebase()');
+  }
+  return _storageBucketName;
 }
 
 export function getAuth() {
