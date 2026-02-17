@@ -118,35 +118,19 @@ export default function Home() {
 
   // 計算變數（todayStr 由 useEffect 在客戶端設定）
   const currentDateStr = todayStr || toLocalDateString(new Date());
-  const hasRecordingToday = Array.isArray(recordings) && recordings.length > 0 && recordings.some((r) => {
-    if (!r.created_at) {
-      console.log('錄音缺少 created_at:', r.id);
-      return false;
-    }
-    // 支援 ISO 格式 (2026-02-17T...) 和 YYYY-MM-DD 格式
+  
+  // 只顯示今天的錄音（過濾出當天的錄音）
+  const todayRecordings = Array.isArray(recordings) ? recordings.filter((r) => {
+    if (!r.created_at) return false;
     const dateStr = typeof r.created_at === 'string' ? r.created_at.slice(0, 10) : '';
-    const matches = dateStr === currentDateStr;
-    if (matches) {
-      console.log('找到今日錄音:', r.id, '日期:', dateStr, '今天:', currentDateStr);
-    }
-    return matches;
-  });
+    return dateStr === currentDateStr;
+  }) : [];
+  
+  const hasRecordingToday = todayRecordings.length > 0;
   const hasCheckedInToday = currentDateStr && checkinDates.includes(currentDateStr);
   const isStudent = user?.role === 'student';
   // 所有人（老師/家長/學生）都需要先有錄音才能簽到
   const canCheckInToday = hasRecordingToday && !hasCheckedInToday;
-  
-  // 調試資訊
-  if (process.env.NODE_ENV === 'development') {
-    console.log('簽到狀態:', {
-      currentDateStr,
-      hasRecordingToday,
-      hasCheckedInToday,
-      canCheckInToday,
-      recordingsCount: recordings?.length || 0,
-      recordings: recordings?.map(r => ({ id: r.id, created_at: r.created_at?.slice(0, 10) })) || []
-    });
-  }
 
   const loadScripturePlan = useCallback(() => {
     const d = new Date();
@@ -426,7 +410,7 @@ export default function Home() {
         {error && <p style={{ color: '#f85149', marginBottom: '0.5rem' }}>{error}</p>}
 
         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-          {Array.isArray(recordings) && recordings.map((r) => (
+          {todayRecordings.map((r) => (
             <li key={r.id} style={{ padding: '0.75rem', background: '#161b22', borderRadius: 8, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
               <audio controls src={API_BASE + r.audioUrl + (token ? `?token=${encodeURIComponent(token)}` : '')} style={{ flex: '1 1 200px', minWidth: 0 }} />
               <span style={{ color: '#8b949e', fontSize: '0.875rem' }}>{formatDate(r.created_at)}</span>
@@ -434,7 +418,7 @@ export default function Home() {
             </li>
           ))}
         </ul>
-        {(!Array.isArray(recordings) || recordings.length === 0) && <p style={{ color: '#8b949e' }}>尚無錄音，按「開始錄音」錄製後會自動儲存。</p>}
+        {todayRecordings.length === 0 && <p style={{ color: '#8b949e' }}>今日尚無錄音，按「開始錄音」錄製後會自動儲存。</p>}
       </section>
 
       <section>
