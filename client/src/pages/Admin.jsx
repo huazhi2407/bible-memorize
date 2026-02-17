@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getISOWeek } from '../utils/date';
+import { getISOWeek, toLocalDateString } from '../utils/date';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
@@ -24,6 +24,7 @@ export default function Admin() {
   const [studentApprovals, setStudentApprovals] = useState({});
   const [studentPoints, setStudentPoints] = useState({});
   const [adjustingPoints, setAdjustingPoints] = useState({});
+  const [checkinRecordings, setCheckinRecordings] = useState([]);
 
   const loadUsers = useCallback(() => {
     fetchWithAuth('/api/users').then((r) => r.json()).then(setUsers).catch(() => setUsers([]));
@@ -89,6 +90,29 @@ export default function Admin() {
       .catch(() => {});
   }, [fetchWithAuth]);
 
+  const loadCheckinRecordings = useCallback(() => {
+    // 載入所有簽到日期和錄音，然後配對
+    Promise.all([
+      fetchWithAuth('/api/checkins/all').then((r) => r.json()).then((data) => data.dates || []).catch(() => []),
+      fetchWithAuth('/api/recordings').then((r) => r.ok ? r.json() : []).catch(() => [])
+    ]).then(([checkinDates, allRecordings]) => {
+      // 對於每個簽到日期，找到該日期對應的錄音（每天一個）
+      const matched = checkinDates.map((date) => {
+        // 找到該日期對應的錄音（created_at 的日期部分匹配）
+        const recording = Array.isArray(allRecordings) ? allRecordings.find((r) => {
+          if (!r.created_at) return false;
+          const recDate = typeof r.created_at === 'string' ? r.created_at.slice(0, 10) : '';
+          return recDate === date;
+        }) : null;
+        return { date, recording };
+      }).filter((item) => item.recording); // 只保留有錄音的簽到記錄
+      
+      // 按日期降序排序（最新的在前）
+      matched.sort((a, b) => b.date.localeCompare(a.date));
+      setCheckinRecordings(matched);
+    }).catch(() => setCheckinRecordings([]));
+  }, [fetchWithAuth]);
+
   useEffect(() => {
     const canAccess = user?.role === 'admin' || user?.role === 'teacher' || user?.role === 'parent';
     if (!canAccess) {
@@ -121,6 +145,12 @@ export default function Admin() {
       students.forEach((s) => loadStudentApproval(s.id, today));
     }
   }, [user?.role, tab, students, loadStudentApproval]);
+
+  useEffect(() => {
+    if ((user?.role === 'admin' || user?.role === 'teacher' || user?.role === 'parent') && tab === 'checkin-history') {
+      loadCheckinRecordings();
+    }
+  }, [user?.role, tab, loadCheckinRecordings]);
 
   const deleteUser = (id, name) => {
     if (!confirm(`確定要刪除使用者「${name}」？其錄音與簽到也會一併刪除。`)) return;
@@ -213,7 +243,10 @@ export default function Admin() {
 
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
         {(user?.role === 'admin' || user?.role === 'teacher' || user?.role === 'parent') && (
-          <button type="button" onClick={() => setTab('students')} style={tab === 'students' ? btnStyle('#238636') : btnStyle('#21262d')}>學生</button>
+          <>
+            <button type="button" onClick={() => setTab('students')} style={tab === 'students' ? btnStyle('#238636') : btnStyle('#21262d')}>學生</button>
+            <button type="button" onClick={() => { setTab('checkin-history'); loadCheckinRecordings(); }} style={tab === 'checkin-history' ? btnStyle('#238636') : btnStyle('#21262d')}>歷史簽到錄音</button>
+          </>
         )}
         {user?.role === 'admin' && (
           <>
@@ -379,6 +412,31 @@ export default function Admin() {
             })}
           </ul>
           {students.length === 0 && <p style={{ color: '#8b949e' }}>尚無學生</p>}
+        </section>
+      )}
+
+      {tab === 'checkin-history' && (user?.role === 'admin' || user?.role === 'teacher' || user?.role === 'parent') && (
+        <section>
+          <h2 style={{ fontSize: '1rem', marginBottom: '0.75rem' }}>歷史簽到錄音</h2>
+          <p style={{ color: '#8b949e', fontSize: '0.875rem', marginBottom: '1rem' }}>
+            顯示您之前簽到時對應的錄音，每天一個錄音。
+          </p>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+            {checkinRecordings.map((item) => (
+              <li key={item.date} style={{ padding: '0.75rem', background: '#161b22', borderRadius: 8, marginBottom: '0.75rem' }}>
+                <div style={{ marginBottom: '0.5rem', fontWeight: 500, color: '#e6edf3' }}>
+                  {item.date}（{new Date(item.date + 'T12:00:00').toLocaleDateString('zh-TW', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}）
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <audio controls src={API_BASE + item.recording.audioUrl + (token ? `?token=${encodeURIComponent(token)}` : '')} style={{ flex: '1 1 200px', minWidth: 0 }} />
+                  <span style={{ color: '#8b949e', fontSize: '0.875rem' }}>
+                    {item.recording.created_at ? new Date(item.recording.created_at).toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+          {checkinRecordings.length === 0 && <p style={{ color: '#8b949e' }}>尚無簽到錄音記錄</p>}
         </section>
       )}
 
