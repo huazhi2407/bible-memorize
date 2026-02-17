@@ -3,14 +3,19 @@ import { authMiddleware } from '../middleware/auth.js';
 import { addApproval, getApprovalForDate, getApprovalsForStudent, listStudents, addCheckin, adjustPoints, checkDailyPointsAdded, getRecordingsByUser, deleteRecording } from '../db-firebase.js';
 import { storage, getStorageBucketName } from '../firebase-config.js';
 
-/** 將 ISO 日期字串轉換為本地日期字串 YYYY-MM-DD */
+/** 將 ISO 日期字串轉換為本地日期字串 YYYY-MM-DD（使用 UTC+8 時區） */
 function toLocalDateStr(isoDateStr) {
-  // isoDateStr 可能是完整的 ISO 字串（如 '2026-02-18T12:34:56.789Z'）或日期部分（如 '2026-02-18'）
+  // isoDateStr 是完整的 ISO 字串（如 '2026-02-17T16:40:51.772Z'）
+  // 為了確保與前端一致，我們使用 UTC+8 時區（台灣時區）
   const d = new Date(isoDateStr);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  // 轉換為 UTC+8 時區：UTC 時間 + 8 小時
+  const utc8Time = new Date(d.getTime() + 8 * 60 * 60 * 1000);
+  const y = utc8Time.getUTCFullYear();
+  const m = String(utc8Time.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(utc8Time.getUTCDate()).padStart(2, '0');
+  const result = `${y}-${m}-${day}`;
+  console.log('toLocalDateStr:', { isoDateStr, originalUTC: d.toISOString(), utc8Time: utc8Time.toISOString(), result });
+  return result;
 }
 
 const router = Router();
