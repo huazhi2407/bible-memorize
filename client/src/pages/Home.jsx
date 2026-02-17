@@ -120,10 +120,19 @@ export default function Home() {
   const currentDateStr = todayStr || toLocalDateString(new Date());
   
   // 只顯示今天的錄音（過濾出當天的錄音）
+  // 注意：created_at 是 ISO 字串（UTC），需要轉換為本地日期來比較
   const todayRecordings = Array.isArray(recordings) ? recordings.filter((r) => {
-    if (!r.created_at) return false;
-    const dateStr = typeof r.created_at === 'string' ? r.created_at.slice(0, 10) : '';
-    return dateStr === currentDateStr;
+    if (!r || !r.created_at) return false;
+    try {
+      // 將 ISO 字串轉換為本地日期字串來比較
+      const recDate = new Date(r.created_at);
+      const recDateStr = toLocalDateString(recDate);
+      return recDateStr === currentDateStr;
+    } catch (e) {
+      // 如果日期解析失敗，嘗試直接比較字串（向後兼容）
+      const dateStr = typeof r.created_at === 'string' ? r.created_at.slice(0, 10) : '';
+      return dateStr === currentDateStr;
+    }
   }) : [];
   
   const hasRecordingToday = todayRecordings.length > 0;
@@ -428,7 +437,13 @@ export default function Home() {
             </li>
           ))}
         </ul>
-        {todayRecordings.length === 0 && <p style={{ color: '#8b949e' }}>今日尚無錄音，按「開始錄音」錄製後會自動儲存。</p>}
+        {todayRecordings.length === 0 && recordings.length === 0 && <p style={{ color: '#8b949e' }}>今日尚無錄音，按「開始錄音」錄製後會自動儲存。</p>}
+        {todayRecordings.length === 0 && recordings.length > 0 && (
+          <p style={{ color: '#8b949e' }}>
+            今日尚無錄音（共有 {recordings.length} 筆其他日期的錄音）。
+            {currentDateStr && <span> 今天日期：{currentDateStr}</span>}
+          </p>
+        )}
       </section>
 
       <section>
