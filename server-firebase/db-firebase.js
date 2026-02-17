@@ -292,11 +292,18 @@ function toLocalDateStr(d) {
   return `${y}-${m}-${day}`;
 }
 
-/** ISO 週：該年該週的週一（與前端 getWeekDates 一致） */
-function getDateOfISOWeek(y, w) {
+/** 第 1 週的週一：含 1/4 的那週的週一（從 1/4 往前減天數，與前端一致） */
+function getMondayOfWeek1(y) {
   const jan4 = new Date(y, 0, 4);
   const isoDayJan4 = jan4.getDay() === 0 ? 7 : jan4.getDay();
-  const mondayWeek1 = new Date(y, 0, 4 - (isoDayJan4 - 1));
+  const monday = new Date(jan4);
+  monday.setDate(jan4.getDate() - (isoDayJan4 - 1));
+  return monday;
+}
+
+/** ISO 週：該年該週的週一（與前端 getWeekDates 一致） */
+function getDateOfISOWeek(y, w) {
+  const mondayWeek1 = getMondayOfWeek1(y);
   const mondayOfWeek = new Date(mondayWeek1);
   mondayOfWeek.setDate(mondayWeek1.getDate() + (w - 1) * 7);
   return mondayOfWeek;
