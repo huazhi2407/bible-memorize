@@ -192,6 +192,7 @@ export async function getRecordingsByUserIds(userIds) {
   }
   const results = [];
   for (const chunk of chunks) {
+    if (!chunk || chunk.length === 0) continue; // 跳過空陣列
     // 不使用 orderBy，改為客戶端排序（避免 Firestore 索引問題）
     const snapshot = await db.collection(COLLECTIONS.RECORDINGS)
       .where('user_id', 'in', chunk)
@@ -322,13 +323,15 @@ export async function getCheckinsForWeek(userId, year, week) {
   const startStr = toLocalDateStr(start);
   const endStr = toLocalDateStr(end);
   
+  // 不使用多個 where，改為客戶端過濾（避免 Firestore 索引問題）
   const snapshot = await db.collection(COLLECTIONS.CHECKINS)
     .where('user_id', '==', userId)
-    .where('date', '>=', startStr)
-    .where('date', '<=', endStr)
     .get();
   
-  return snapshot.docs.map(doc => doc.data().date);
+  // 客戶端過濾：只返回該週的日期
+  return snapshot.docs
+    .map(doc => doc.data().date)
+    .filter(date => date >= startStr && date <= endStr);
 }
 
 export async function getCheckinsForUser(userId) {
