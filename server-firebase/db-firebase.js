@@ -400,16 +400,23 @@ export async function createOrUpdateScripturePlan(year, week, segments) {
 }
 
 export async function listScripturePlans() {
+  // 不使用 orderBy，改為客戶端排序（避免 Firestore 索引問題）
   const snapshot = await db.collection(COLLECTIONS.SCRIPTURE_PLANS)
-    .orderBy('year', 'desc')
-    .orderBy('week', 'desc')
     .get();
   
-  return snapshot.docs.map(doc => ({
+  const plans = snapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
     created_at: doc.data().created_at?.toDate().toISOString(),
   }));
+  
+  // 客戶端排序：先按 year 降序，再按 week 降序
+  plans.sort((a, b) => {
+    if (b.year !== a.year) return (b.year || 0) - (a.year || 0);
+    return (b.week || 0) - (a.week || 0);
+  });
+  
+  return plans;
 }
 
 // ========== 確認相關 ==========
@@ -451,15 +458,19 @@ export async function getApprovalForDate(studentId, date) {
 }
 
 export async function getApprovalsForStudent(studentId) {
+  // 不使用 orderBy，改為客戶端排序（避免 Firestore 索引問題）
   const snapshot = await db.collection(COLLECTIONS.APPROVALS)
     .where('student_id', '==', studentId)
-    .orderBy('date', 'desc')
     .get();
   
-  return snapshot.docs.map(doc => ({
+  const approvals = snapshot.docs.map(doc => ({
     date: doc.data().date,
     approver_id: doc.data().approver_id,
   }));
+  
+  // 客戶端排序：按 date 降序
+  approvals.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  return approvals;
 }
 
 export async function listStudents() {
