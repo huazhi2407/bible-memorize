@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
-import { addApproval, getApprovalForDate, getApprovalsForStudent, listStudents, addCheckin, adjustPoints, checkDailyPointsAdded } from '../db-firebase.js';
+import { addApproval, getApprovalForDate, getApprovalsForStudent, listStudents, addCheckin, adjustPoints, checkDailyPointsAdded, getRecordingsByUser, deleteRecording } from '../db-firebase.js';
+import { storage, getStorageBucketName } from '../firebase-config.js';
 
 const router = Router();
 router.use(authMiddleware);
@@ -69,6 +70,44 @@ router.get('/students', async (req, res) => {
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: '取得學生列表失敗' });
+  }
+});
+
+// 標記錄音不合格並刪除當天的錄音
+router.post('/reject', async (req, res) => {
+  try {
+    const { studentId, date } = req.body || {};
+    if (!studentId || !date) {
+      return res.status(400).json({ error: '請提供 studentId 與 date' });
+    }
+    const approverRole = req.user.role;
+    if (approverRole !== 'admin' && approverRole !== 'teacher' && approverRole !== 'parent') {
+      return res.status(403).json({ error: '只有管理員、老師或家長可以標記錄音不合格' });
+    }
+    
+    // 取得該學生指定日期的所有錄音
+    const allRecordings = await getRecordingsByUser(studentId);
+    const targetDate = date.slice(0, 10); // 確保是 YYYY-MM-DD 格式
+    const recordingsToDelete = allRecordings.filter((r) => {
+      if (!r.created_at) return false;
+      const recDate = r.created_at.slice(0, 10);
+      return recDate === targetDate;
+    });
+    
+    // 刪除所有當天的錄音（包括 Storage 中的文件）
+    const bucket = storage.bucket(getStorageBucketName());
+    for (const recording of recordingsToDelete) {
+      // 刪除 Storage 中的文件
+      const file = bucket.file(`recordings/${recording.filename}`);
+      await file.delete().catch(() => {}); // 忽略文件不存在的錯誤
+      // 刪除 Firestore 中的記錄
+      await deleteRecording(recording.id);
+    }
+    
+    res.json({ ok: true, deletedCount: recordingsToDelete.length });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: '標記不合格失敗' });
   }
 });
 

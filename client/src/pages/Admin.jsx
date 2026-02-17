@@ -225,6 +225,23 @@ export default function Admin() {
       .catch(() => {});
   };
 
+  const rejectRecording = (studentId, date) => {
+    if (!confirm('確定要標記此錄音為不合格並刪除嗎？學生需要重新錄音。')) return;
+    fetchWithAuth('/api/approvals/reject', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ studentId, date }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok) {
+          loadStudentRecordings(studentId); // 重新載入該學生的錄音
+          loadStudentApproval(studentId, date); // 重新載入確認狀態
+        }
+      })
+      .catch(() => {});
+  };
+
   const adjustStudentPoints = (studentId, pointsChange, reason) => {
     if (!reason || reason.trim() === '') {
       alert('請輸入調整原因');
@@ -382,18 +399,29 @@ export default function Admin() {
                         <span style={{ color: '#8b949e', fontSize: '0.875rem' }}>今日無錄音</span>
                       )}
                       {hasRecordingToday && (
-                        <button
-                          type="button"
-                          onClick={() => approveStudent(s.id, today)}
-                          disabled={isApproved}
-                          style={{
-                            ...btnStyle(isApproved ? '#238636' : '#238636'),
-                            opacity: isApproved ? 0.6 : 1,
-                            cursor: isApproved ? 'not-allowed' : 'pointer',
-                          }}
-                        >
-                          {isApproved ? '已確認並簽到' : '確認合格並簽到'}
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => approveStudent(s.id, today)}
+                            disabled={isApproved}
+                            style={{
+                              ...btnStyle(isApproved ? '#238636' : '#238636'),
+                              opacity: isApproved ? 0.6 : 1,
+                              cursor: isApproved ? 'not-allowed' : 'pointer',
+                            }}
+                          >
+                            {isApproved ? '已確認並簽到' : '確認合格並簽到'}
+                          </button>
+                          {!isApproved && (
+                            <button
+                              type="button"
+                              onClick={() => rejectRecording(s.id, today)}
+                              style={btnStyle('#da3633')}
+                            >
+                              不合格請重錄
+                            </button>
+                          )}
+                        </>
                       )}
                       <button
                         type="button"
