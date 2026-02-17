@@ -25,6 +25,7 @@ export default function Admin() {
   const [studentPoints, setStudentPoints] = useState({});
   const [adjustingPoints, setAdjustingPoints] = useState({});
   const [checkinRecordings, setCheckinRecordings] = useState([]);
+  const [studentRecordingsMap, setStudentRecordingsMap] = useState({}); // { studentId: [recordings] }
 
   const loadUsers = useCallback(() => {
     fetchWithAuth('/api/users').then((r) => r.json()).then(setUsers).catch(() => setUsers([]));
@@ -57,6 +58,26 @@ export default function Admin() {
 
   const loadStudents = useCallback(() => {
     fetchWithAuth('/api/approvals/students').then((r) => r.json()).then(setStudents).catch(() => setStudents([]));
+  }, [fetchWithAuth]);
+
+  const loadStudentRecordings = useCallback((studentId) => {
+    fetchWithAuth(`/api/recordings?userId=${studentId}`)
+      .then((r) => {
+        if (!r.ok) return [];
+        return r.json();
+      })
+      .then((data) => {
+        setStudentRecordingsMap((prev) => ({
+          ...prev,
+          [studentId]: Array.isArray(data) ? data : []
+        }));
+      })
+      .catch(() => {
+        setStudentRecordingsMap((prev) => ({
+          ...prev,
+          [studentId]: []
+        }));
+      });
   }, [fetchWithAuth]);
 
   const loadStudentPoints = useCallback((studentId) => {
@@ -142,9 +163,12 @@ export default function Admin() {
   useEffect(() => {
     if ((user?.role === 'admin' || user?.role === 'teacher' || user?.role === 'parent') && tab === 'students' && students.length > 0) {
       const today = new Date().toISOString().slice(0, 10);
-      students.forEach((s) => loadStudentApproval(s.id, today));
+      students.forEach((s) => {
+        loadStudentApproval(s.id, today);
+        loadStudentRecordings(s.id); // 載入每個學生的錄音
+      });
     }
-  }, [user?.role, tab, students, loadStudentApproval]);
+  }, [user?.role, tab, students, loadStudentApproval, loadStudentRecordings]);
 
   useEffect(() => {
     if ((user?.role === 'admin' || user?.role === 'teacher' || user?.role === 'parent') && tab === 'checkin-history') {
@@ -190,6 +214,7 @@ export default function Admin() {
           loadStudents();
           loadStudentPoints(studentId);
           loadAllStudentsPoints(); // 重新載入所有學生積分以更新排行榜
+          loadStudentRecordings(studentId); // 重新載入該學生的錄音（簽到後可能會有清理）
           if (data.autoCheckedIn) {
             setTimeout(() => {
               loadStudentApproval(studentId, date);
@@ -332,7 +357,13 @@ export default function Admin() {
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
             {students.map((s) => {
               const today = new Date().toISOString().slice(0, 10);
-              const studentRecordings = recordings.filter((r) => r.user_id === s.id && r.created_at?.startsWith(today));
+              // 使用每個學生專屬的錄音列表
+              const allStudentRecordings = studentRecordingsMap[s.id] || [];
+              const studentRecordings = allStudentRecordings.filter((r) => {
+                if (!r.created_at) return false;
+                const recDate = typeof r.created_at === 'string' ? r.created_at.slice(0, 10) : '';
+                return recDate === today;
+              });
               const hasRecordingToday = studentRecordings.length > 0;
               const isApproved = studentApprovals[`${s.id}_${today}`];
               const points = studentPoints[s.id] ?? 0;
@@ -403,7 +434,7 @@ export default function Admin() {
                   {hasRecordingToday && studentRecordings.length > 0 && (
                     <div style={{ marginTop: '0.5rem' }}>
                       {studentRecordings.map((r) => (
-                        <audio key={r.id} controls src={API_BASE + r.audioUrl} style={{ width: '100%', marginBottom: '0.25rem' }} />
+                        <audio key={r.id} controls src={API_BASE + r.audioUrl + (token ? `?token=${encodeURIComponent(token)}` : '')} style={{ width: '100%', marginBottom: '0.25rem' }} />
                       ))}
                     </div>
                   )}
