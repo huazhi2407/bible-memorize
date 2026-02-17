@@ -121,8 +121,16 @@ router.post('/reject', async (req, res) => {
     const targetDate = date.slice(0, 10); // 確保是 YYYY-MM-DD 格式
     const recordingsToDelete = allRecordings.filter((r) => {
       if (!r.created_at) return false;
-      const recDate = r.created_at.slice(0, 10);
-      return recDate === targetDate;
+      try {
+        // 將 ISO 字串轉換為本地日期來比較
+        const recDate = new Date(r.created_at);
+        const recDateStr = toLocalDateStr(recDate.toISOString().slice(0, 10));
+        return recDateStr === targetDate;
+      } catch (e) {
+        // 如果日期解析失敗，嘗試直接比較字串（向後兼容）
+        const recDateStr = typeof r.created_at === 'string' ? r.created_at.slice(0, 10) : '';
+        return recDateStr === targetDate;
+      }
     });
     
     // 刪除所有當天的錄音（包括 Storage 中的文件）

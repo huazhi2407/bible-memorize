@@ -232,14 +232,24 @@ export default function Admin() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ studentId, date }),
     })
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) {
+          return r.json().then((data) => {
+            alert(data.error || '操作失敗');
+            throw new Error(data.error || '操作失敗');
+          });
+        }
+        return r.json();
+      })
       .then((data) => {
         if (data.ok) {
           loadStudentRecordings(studentId); // 重新載入該學生的錄音
           loadStudentApproval(studentId, date); // 重新載入確認狀態
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error('標記不合格失敗:', err);
+      });
   };
 
   const adjustStudentPoints = (studentId, pointsChange, reason) => {
