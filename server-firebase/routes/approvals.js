@@ -3,6 +3,15 @@ import { authMiddleware } from '../middleware/auth.js';
 import { addApproval, getApprovalForDate, getApprovalsForStudent, listStudents, addCheckin, adjustPoints, checkDailyPointsAdded, getRecordingsByUser, deleteRecording } from '../db-firebase.js';
 import { storage, getStorageBucketName } from '../firebase-config.js';
 
+/** 將日期轉換為本地日期字串 YYYY-MM-DD */
+function toLocalDateStr(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00'); // 使用中午避免時區問題
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 const router = Router();
 router.use(authMiddleware);
 
@@ -16,6 +25,28 @@ router.post('/', async (req, res) => {
     if (approverRole !== 'admin' && approverRole !== 'teacher' && approverRole !== 'parent') {
       return res.status(403).json({ error: '只有管理員、老師或家長可以確認學生合格' });
     }
+    
+    // 驗證學生是否有當天的錄音
+    const allRecordings = await getRecordingsByUser(studentId);
+    const dateStr = date.slice(0, 10); // 確保是 YYYY-MM-DD 格式
+    const hasRecordingToday = allRecordings.some((r) => {
+      if (!r.created_at) return false;
+      try {
+        // 將 ISO 字串轉換為本地日期來比較
+        const recDate = new Date(r.created_at);
+        const recDateStr = toLocalDateStr(recDate.toISOString().slice(0, 10));
+        return recDateStr === dateStr;
+      } catch (e) {
+        // 如果解析失敗，嘗試直接比較字串
+        const recDateStr = typeof r.created_at === 'string' ? r.created_at.slice(0, 10) : '';
+        return recDateStr === dateStr;
+      }
+    });
+    
+    if (!hasRecordingToday) {
+      return res.status(400).json({ error: '學生當天沒有錄音，無法確認合格' });
+    }
+    
     const ok = await addApproval(studentId, req.user.id, date);
     if (ok) {
       await addCheckin(studentId, date);

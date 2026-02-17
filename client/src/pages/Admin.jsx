@@ -162,7 +162,7 @@ export default function Admin() {
 
   useEffect(() => {
     if ((user?.role === 'admin' || user?.role === 'teacher' || user?.role === 'parent') && tab === 'students' && students.length > 0) {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = toLocalDateString(new Date()); // 使用本地日期
       students.forEach((s) => {
         loadStudentApproval(s.id, today);
         loadStudentRecordings(s.id); // 載入每個學生的錄音
@@ -373,13 +373,21 @@ export default function Admin() {
           )}
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
             {students.map((s) => {
-              const today = new Date().toISOString().slice(0, 10);
+              const today = toLocalDateString(new Date()); // 使用本地日期，不是 UTC
               // 使用每個學生專屬的錄音列表
               const allStudentRecordings = studentRecordingsMap[s.id] || [];
               const studentRecordings = allStudentRecordings.filter((r) => {
-                if (!r.created_at) return false;
-                const recDate = typeof r.created_at === 'string' ? r.created_at.slice(0, 10) : '';
-                return recDate === today;
+                if (!r || !r.created_at) return false;
+                try {
+                  // 將 ISO 字串轉換為本地日期字串來比較
+                  const recDate = new Date(r.created_at);
+                  const recDateStr = toLocalDateString(recDate);
+                  return recDateStr === today;
+                } catch (e) {
+                  // 如果日期解析失敗，嘗試直接比較字串（向後兼容）
+                  const dateStr = typeof r.created_at === 'string' ? r.created_at.slice(0, 10) : '';
+                  return dateStr === today;
+                }
               });
               const hasRecordingToday = studentRecordings.length > 0;
               const isApproved = studentApprovals[`${s.id}_${today}`];
