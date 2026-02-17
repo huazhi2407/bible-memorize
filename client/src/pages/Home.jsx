@@ -119,7 +119,8 @@ export default function Home() {
   const hasRecordingToday = todayStr && Array.isArray(recordings) && recordings.some((r) => r.created_at && r.created_at.startsWith(todayStr));
   const hasCheckedInToday = todayStr && checkinDates.includes(todayStr);
   const isStudent = user?.role === 'student';
-  const canCheckInToday = !isStudent && hasRecordingToday && !hasCheckedInToday;
+  // 所有人（老師/家長/學生）都需要先有錄音才能簽到
+  const canCheckInToday = hasRecordingToday && !hasCheckedInToday;
 
   const loadScripturePlan = useCallback(() => {
     const d = new Date();
@@ -404,7 +405,7 @@ export default function Home() {
                 : '需先完成「今日錄音」，被確認合格後會自動簽到。'
               : hasRecordingToday
                 ? '今日已有錄音，可簽到。'
-                : '需先完成「今日錄音」並確認有錄音後，才能簽到。'}
+                : '需先完成「今日錄音」後，才能簽到。'}
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
           <button type="button" onClick={prevWeek} style={btnStyle('#21262d')}>上一週</button>
