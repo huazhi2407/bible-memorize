@@ -110,8 +110,11 @@ router.get('/', async (req, res) => {
     } else if (userRole === 'admin') {
       // admin 不帶 userId：返回所有錄音（管理後台需要）
       list = await getAllRecordings();
+    } else if (userRole === 'teacher' || userRole === 'parent') {
+      // 老師/家長不帶 userId：只返回自己的錄音（經文頁面）
+      list = await getRecordingsByUser(req.user.id);
     } else {
-      // 其他角色：只返回自己的錄音
+      // 學生：只返回自己的錄音
       list = await getRecordingsByUser(req.user.id);
     }
     res.json(list.map((r) => ({ ...r, audioUrl: `/storage/${r.filename}` })));
