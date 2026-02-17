@@ -253,20 +253,30 @@ export async function addCheckin(userId, date) {
   return true;
 }
 
+/** 依本地日期輸出 YYYY-MM-DD，避免 UTC 造成日期錯位 */
+function toLocalDateStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** ISO 週：該年該週的週一（與前端 getWeekDates 一致） */
 function getDateOfISOWeek(y, w) {
-  const d = new Date(y, 0, 1);
-  const day = d.getDay() || 7;
-  const diff = (w - 1) * 7 - (day - 1) + 1;
-  d.setDate(diff);
-  return d;
+  const jan4 = new Date(y, 0, 4);
+  const isoDayJan4 = jan4.getDay() === 0 ? 7 : jan4.getDay();
+  const mondayWeek1 = new Date(y, 0, 4 - (isoDayJan4 - 1));
+  const mondayOfWeek = new Date(mondayWeek1);
+  mondayOfWeek.setDate(mondayWeek1.getDate() + (w - 1) * 7);
+  return mondayOfWeek;
 }
 
 export async function getCheckinsForWeek(userId, year, week) {
   const start = getDateOfISOWeek(year, week);
   const end = new Date(start);
   end.setDate(end.getDate() + 6);
-  const startStr = start.toISOString().slice(0, 10);
-  const endStr = end.toISOString().slice(0, 10);
+  const startStr = toLocalDateStr(start);
+  const endStr = toLocalDateStr(end);
   
   const snapshot = await db.collection(COLLECTIONS.CHECKINS)
     .where('user_id', '==', userId)

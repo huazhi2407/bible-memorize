@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getWeekDates, getISOWeek, formatDate, getISODayOfWeek } from '../utils/date';
+import { getWeekDates, getISOWeek, formatDate, getISODayOfWeek, toLocalDateString } from '../utils/date';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
@@ -61,7 +61,7 @@ export default function Home() {
   // 檢查並扣分（如果沒有錄音）
   const checkDailyPoints = useCallback(() => {
     if (user?.role !== 'student') return;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = toLocalDateString(new Date());
     fetchWithAuth('/api/points/check-daily', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -100,7 +100,7 @@ export default function Home() {
   useEffect(() => { if (status === 'done') loadStudentsRanking(); }, [status, loadStudentsRanking]);
 
   // 計算變數（需要在 useEffect 之前定義）
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = toLocalDateString(new Date());
   const hasRecordingToday = Array.isArray(recordings) && recordings.some((r) => r.created_at && r.created_at.startsWith(todayStr));
   const hasCheckedInToday = checkinDates.includes(todayStr);
   const isStudent = user?.role === 'student';
@@ -120,7 +120,7 @@ export default function Home() {
 
   const loadApprovalStatus = useCallback(() => {
     if (user?.role !== 'student') return;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = toLocalDateString(new Date());
     fetchWithAuth(`/api/approvals/check/${user.id}/${today}`)
       .then((r) => {
         if (!r.ok) return { approved: false };
@@ -199,7 +199,7 @@ export default function Home() {
   }, [status, fetchWithAuth, loadRecordings]);
 
   const doCheckin = useCallback(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = toLocalDateString(new Date());
     fetchWithAuth('/api/checkins', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -230,13 +230,13 @@ export default function Home() {
   const prevWeek = () => {
     let { year, week } = weekYear;
     week--;
-    if (week < 1) { year--; week = 52; }
+    if (week < 1) { year--; week = 53; }
     setWeekYear({ year, week });
   };
   const nextWeek = () => {
     let { year, week } = weekYear;
     week++;
-    if (week > 52) { year++; week = 1; }
+    if (week > 53) { year++; week = 1; }
     setWeekYear({ year, week });
   };
 
@@ -365,7 +365,7 @@ export default function Home() {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.25rem' }}>
           {weekDates.map((d) => {
-            const dateStr = d.toISOString().slice(0, 10);
+            const dateStr = toLocalDateString(d);
             const checked = checkinDates.includes(dateStr);
             const isToday = dateStr === todayStr;
             return (

@@ -1,20 +1,29 @@
+/** ISO 週數：週一為第一天，含 1/4 的那週為第 1 週 */
 export function getISOWeek(d) {
-  d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const jan4 = new Date(date.getFullYear(), 0, 4);
+  const isoDayJan4 = jan4.getDay() === 0 ? 7 : jan4.getDay();
+  const mondayWeek1 = new Date(date.getFullYear(), 0, 4 - (isoDayJan4 - 1));
+  const diffMs = date - mondayWeek1;
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (diffDays < 0) {
+    const prevYear = date.getFullYear() - 1;
+    return getISOWeek(new Date(prevYear, 11, 31));
+  }
+  return Math.floor(diffDays / 7) + 1;
 }
 
+/** 回傳該 ISO 年週的週一～週日（7 個 Date，本地時區） */
 export function getWeekDates(year, week) {
-  const jan1 = new Date(year, 0, 1);
-  const day = jan1.getDay() || 7;
-  const diff = (week - 1) * 7 - (day - 1) + 1;
-  const start = new Date(year, 0, 1);
-  start.setDate(start.getDate() + diff);
+  const jan4 = new Date(year, 0, 4);
+  const isoDayJan4 = jan4.getDay() === 0 ? 7 : jan4.getDay();
+  const mondayWeek1 = new Date(year, 0, 4 - (isoDayJan4 - 1));
+  const mondayOfWeek = new Date(mondayWeek1);
+  mondayOfWeek.setDate(mondayWeek1.getDate() + (week - 1) * 7);
   const out = [];
   for (let i = 0; i < 7; i++) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
+    const d = new Date(mondayOfWeek);
+    d.setDate(mondayOfWeek.getDate() + i);
     out.push(d);
   }
   return out;
@@ -30,4 +39,13 @@ export function formatDate(iso) {
 export function getISODayOfWeek(d) {
   const day = (d || new Date()).getDay();
   return day === 0 ? 7 : day;
+}
+
+/** 回傳本地日期的 YYYY-MM-DD（避免 UTC 造成週曆與「今天」錯位） */
+export function toLocalDateString(d) {
+  const date = d || new Date();
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
