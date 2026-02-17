@@ -6,9 +6,10 @@ import { authMiddleware, adminOnly } from '../middleware/auth.js';
 import {
   createRecording,
   getRecordingsByUser,
-  getAllRecordings,
+  getRecordingsByUserIds,
   getRecordingById,
   deleteRecording as dbDeleteRecording,
+  listStudents,
 } from '../db-firebase.js';
 
 const router = Router();
@@ -99,22 +100,16 @@ router.get('/', async (req, res) => {
     if (!req.user) {
       return res.status(401).json({ error: '未登入' });
     }
-    const userId = req.query.userId;
+    const requestedUserId = req.query.userId;
     const userRole = req.user.role;
-    
+    // 未帶 userId：一律只回傳「目前登入者」的錄音（每人只看得到自己的）
+    // 僅 admin/老師/家長 可帶 userId 查詢指定學生的錄音
     let list;
-    if (userRole === 'admin' && userId) {
-      list = await getRecordingsByUser(userId);
-    } else if (userRole === 'admin' && !userId) {
-      list = await getAllRecordings();
-    } else if ((userRole === 'teacher' || userRole === 'parent') && !userId) {
-      list = await getAllRecordings();
-    } else if ((userRole === 'teacher' || userRole === 'parent') && userId) {
-      list = await getRecordingsByUser(userId);
+    if (requestedUserId && (userRole === 'admin' || userRole === 'teacher' || userRole === 'parent')) {
+      list = await getRecordingsByUser(requestedUserId);
     } else {
       list = await getRecordingsByUser(req.user.id);
     }
-    
     res.json(list.map((r) => ({ ...r, audioUrl: `/storage/${r.filename}` })));
   } catch (e) {
     console.error('取得錄音失敗:', e);

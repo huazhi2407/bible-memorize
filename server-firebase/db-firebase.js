@@ -178,6 +178,37 @@ export async function getRecordingsByUserId(userId) {
   return getRecordingsByUser(userId);
 }
 
+/** 取得多個使用者的錄音（供老師/家長在學生頁使用）。userIds 最多 30 個（Firestore in 限制）。 */
+export async function getRecordingsByUserIds(userIds) {
+  if (!Array.isArray(userIds) || userIds.length === 0) return [];
+  const unique = [...new Set(userIds)];
+  const chunks = [];
+  for (let i = 0; i < unique.length; i += 30) {
+    chunks.push(unique.slice(i, i + 30));
+  }
+  const results = [];
+  for (const chunk of chunks) {
+    const snapshot = await db.collection(COLLECTIONS.RECORDINGS)
+      .where('user_id', 'in', chunk)
+      .orderBy('created_at', 'desc')
+      .get();
+    for (const doc of snapshot.docs) {
+      const data = doc.data();
+      const user = await findUserById(data.user_id);
+      results.push({
+        id: doc.id,
+        filename: data.filename,
+        created_at: data.created_at?.toDate().toISOString(),
+        user_id: data.user_id,
+        name: user?.name || '',
+        number: user?.number || '',
+      });
+    }
+  }
+  results.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  return results;
+}
+
 export async function getAllRecordings() {
   const snapshot = await db.collection(COLLECTIONS.RECORDINGS)
     .orderBy('created_at', 'desc')
