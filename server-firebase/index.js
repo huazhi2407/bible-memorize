@@ -18,7 +18,33 @@ initFirebase();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+// CORS 配置：允許 Vercel 前端和其他來源
+app.use(cors({
+  origin: (origin, callback) => {
+    // 允許的來源列表
+    const allowedOrigins = [
+      'https://bible-memorize-henna.vercel.app',
+      'http://localhost:5173',
+      'http://localhost:3000',
+    ];
+    
+    // 允許所有 Vercel 預覽部署（bible-memorize-*.vercel.app）
+    if (origin && origin.match(/^https:\/\/bible-memorize-.*\.vercel\.app$/)) {
+      return callback(null, true);
+    }
+    
+    // 允許明確列出的來源
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // 拒絕其他來源
+    callback(new Error('不允許的 CORS 來源'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 app.use(express.json());
 
 // 文件下載代理（從 Firebase Storage）- 需要身份驗證
