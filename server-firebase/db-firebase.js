@@ -192,9 +192,9 @@ export async function getRecordingsByUserIds(userIds) {
   }
   const results = [];
   for (const chunk of chunks) {
+    // 不使用 orderBy，改為客戶端排序（避免 Firestore 索引問題）
     const snapshot = await db.collection(COLLECTIONS.RECORDINGS)
       .where('user_id', 'in', chunk)
-      .orderBy('created_at', 'desc')
       .get();
     for (const doc of snapshot.docs) {
       const data = doc.data();
@@ -209,6 +209,7 @@ export async function getRecordingsByUserIds(userIds) {
       });
     }
   }
+  // 客戶端排序：按 created_at 降序
   results.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
   return results;
 }
@@ -505,10 +506,9 @@ export async function adjustPoints(studentId, pointsChange, reason, adjustedBy =
 }
 
 export async function getPointsHistory(studentId, limit = 50) {
+  // 不使用 orderBy，改為客戶端排序（避免 Firestore 索引問題）
   const snapshot = await db.collection(COLLECTIONS.POINTS_HISTORY)
     .where('student_id', '==', studentId)
-    .orderBy('created_at', 'desc')
-    .limit(limit)
     .get();
   
   const history = [];
@@ -526,8 +526,9 @@ export async function getPointsHistory(studentId, limit = 50) {
       created_at: data.created_at?.toDate().toISOString(),
     });
   }
-  
-  return history;
+  // 客戶端排序：按 created_at 降序，然後限制數量
+  history.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  return history.slice(0, limit);
 }
 
 export async function checkDailyPointsDeduction(studentId, date) {
