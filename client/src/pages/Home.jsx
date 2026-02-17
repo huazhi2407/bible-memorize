@@ -32,13 +32,19 @@ export default function Home() {
   }, []);
 
   const loadRecordings = useCallback(() => {
-    fetchWithAuth('/api/recordings')
+    return fetchWithAuth('/api/recordings')
       .then((r) => {
         if (!r.ok) return [];
         return r.json();
       })
-      .then((data) => setRecordings(Array.isArray(data) ? data : []))
-      .catch(() => setRecordings([]));
+      .then((data) => {
+        setRecordings(Array.isArray(data) ? data : []);
+        return data;
+      })
+      .catch(() => {
+        setRecordings([]);
+        return [];
+      });
   }, [fetchWithAuth]);
 
   const loadCheckins = useCallback(() => {
@@ -159,7 +165,6 @@ export default function Home() {
       const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
       chunksRef.current = [];
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      recorder.onstop = () => stream.getTracks().forEach((t) => t.stop());
       mediaRecorderRef.current = recorder;
       recorder.start(200);
       setStatus('recording');
@@ -172,11 +177,18 @@ export default function Home() {
   const stopAndUpload = useCallback(async () => {
     const recorder = mediaRecorderRef.current;
     if (!recorder || status !== 'recording') return;
-    recorder.stop();
+    const stream = recorder.stream;
     setStatus('uploading');
     setError('');
     try {
-      await new Promise((r) => { recorder.onstop = r; });
+      // 等待錄音停止並關閉 stream
+      await new Promise((resolve) => {
+        recorder.onstop = () => {
+          stream.getTracks().forEach((t) => t.stop());
+          resolve();
+        };
+        recorder.stop();
+      });
       const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
       if (blob.size === 0) {
         throw new Error('錄音文件為空，請重新錄音');
@@ -197,13 +209,18 @@ export default function Home() {
       if (!res.ok) {
         throw new Error(data.error || `上傳失敗 (${res.status})`);
       }
-      loadRecordings();
+      // 等待錄音列表載入完成後再設定狀態
+      await loadRecordings();
+      chunksRef.current = [];
+      mediaRecorderRef.current = null;
       setStatus('done');
       setError('');
     } catch (err) {
       console.error('上傳錯誤:', err);
       setError(err.message || '上傳失敗，請檢查網絡連接');
       setStatus('error');
+      chunksRef.current = [];
+      mediaRecorderRef.current = null;
     }
   }, [status, fetchWithAuth, loadRecordings]);
 
