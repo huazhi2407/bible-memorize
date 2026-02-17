@@ -246,6 +246,16 @@ export default function Home() {
               }
               return merged;
             });
+            // 檢查是否有今天的錄音，如果有則重置 status 為 idle
+            const currentDateStr = toLocalDateString(new Date());
+            const hasRecordings = Array.isArray(list) && list.some((r) => {
+              if (!r.created_at) return false;
+              const dateStr = typeof r.created_at === 'string' ? r.created_at.slice(0, 10) : '';
+              return dateStr === currentDateStr;
+            });
+            if (hasRecordings) {
+              setStatus('idle');
+            }
           }
         }).catch(() => {});
       }, 1000);
@@ -405,7 +415,7 @@ export default function Home() {
           {status === 'idle' && <button type="button" onClick={startRecording} style={btnStyle('#238636')}>開始錄音</button>}
           {status === 'recording' && <button type="button" onClick={stopAndUpload} style={btnStyle('#da3633')}>停止並儲存</button>}
           {status === 'uploading' && <span style={{ color: '#8b949e' }}>上傳中…</span>}
-          {(status === 'done' || status === 'error') && <button type="button" onClick={() => setStatus('idle')} style={btnStyle('#21262d')}>再錄一次</button>}
+          {(status === 'done' || status === 'error') && !hasRecordingToday && <button type="button" onClick={() => setStatus('idle')} style={btnStyle('#21262d')}>再錄一次</button>}
         </div>
         {error && <p style={{ color: '#f85149', marginBottom: '0.5rem' }}>{error}</p>}
 
