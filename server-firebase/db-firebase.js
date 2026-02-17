@@ -292,13 +292,13 @@ function toLocalDateStr(d) {
   return `${y}-${m}-${day}`;
 }
 
-/** 第 1 週的週一：含 1/4 的那週的週一（從 1/4 往前減天數，與前端一致） */
+const MS_PER_DAY = 86400000;
+
+/** 第 1 週的週一：含 1/4 的那週的週一（用毫秒減天數，與前端一致） */
 function getMondayOfWeek1(y) {
-  const jan4 = new Date(y, 0, 4);
+  const jan4 = new Date(y, 0, 4, 12, 0, 0, 0);
   const isoDayJan4 = jan4.getDay() === 0 ? 7 : jan4.getDay();
-  const monday = new Date(jan4);
-  monday.setDate(jan4.getDate() - (isoDayJan4 - 1));
-  return monday;
+  return new Date(jan4.getTime() - (isoDayJan4 - 1) * MS_PER_DAY);
 }
 
 /** ISO 週：該年該週的週一（與前端 getWeekDates 一致） */

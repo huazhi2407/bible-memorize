@@ -4,13 +4,13 @@ function isoDayOfWeek(d) {
   return day === 0 ? 7 : day;
 }
 
-/** 第 1 週的週一：含 1/4 的那週的週一（從 1/4 往前減天數，避免 4-n 為負時算錯） */
+const MS_PER_DAY = 86400000;
+
+/** 第 1 週的週一：含 1/4 的那週的週一（用毫秒減天數，避免 setDate 負數跨月解讀錯誤） */
 function getMondayOfWeek1(y) {
   const jan4 = new Date(y, 0, 4, 12, 0, 0, 0);
   const isoDayJan4 = isoDayOfWeek(jan4);
-  const monday = new Date(jan4);
-  monday.setDate(jan4.getDate() - (isoDayJan4 - 1));
-  return monday;
+  return new Date(jan4.getTime() - (isoDayJan4 - 1) * MS_PER_DAY);
 }
 
 /** ISO 週數：週一為第一天，含 1/4 的那週為第 1 週（用中午 12:00 避免午夜/DST 邊界） */
