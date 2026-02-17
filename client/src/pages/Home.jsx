@@ -116,8 +116,14 @@ export default function Home() {
   useEffect(() => { if (status === 'done') loadStudentsRanking(); }, [status, loadStudentsRanking]);
 
   // 計算變數（todayStr 由 useEffect 在客戶端設定）
-  const hasRecordingToday = todayStr && Array.isArray(recordings) && recordings.some((r) => r.created_at && r.created_at.startsWith(todayStr));
-  const hasCheckedInToday = todayStr && checkinDates.includes(todayStr);
+  const currentDateStr = todayStr || toLocalDateString(new Date());
+  const hasRecordingToday = Array.isArray(recordings) && recordings.some((r) => {
+    if (!r.created_at) return false;
+    // 支援 ISO 格式 (2026-02-17T...) 和 YYYY-MM-DD 格式
+    const dateStr = typeof r.created_at === 'string' ? r.created_at.slice(0, 10) : '';
+    return dateStr === currentDateStr;
+  });
+  const hasCheckedInToday = currentDateStr && checkinDates.includes(currentDateStr);
   const isStudent = user?.role === 'student';
   // 所有人（老師/家長/學生）都需要先有錄音才能簽到
   const canCheckInToday = hasRecordingToday && !hasCheckedInToday;
