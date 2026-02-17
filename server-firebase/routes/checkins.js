@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
-import { addCheckin, getCheckinsForWeek, getCheckinsForUser, getApprovalForDate, adjustPoints, checkDailyPointsAdded } from '../db-firebase.js';
+import { addCheckin, getCheckinsForWeek, getCheckinsForUser, getApprovalForDate, adjustPoints, checkDailyPointsAdded, cleanupDailyRecordings, getRecordingsByUser, deleteRecording } from '../db-firebase.js';
+import { storage, getStorageBucketName } from '../firebase-config.js';
 
 function getISOWeek(d) {
   d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
@@ -23,10 +24,41 @@ router.post('/', async (req, res) => {
       }
     }
     const ok = await addCheckin(req.user.id, date);
-    if (ok && userRole === 'student') {
-      // 學生完成簽到時自動加分（如果還沒加過）
-      if (!(await checkDailyPointsAdded(req.user.id, date))) {
-        await adjustPoints(req.user.id, 1, '完成簽到', null, date);
+    if (ok) {
+      // 簽到成功後，清理當天的其他錄音，只保留最新的
+      try {
+        const allRecordings = await getRecordingsByUser(req.user.id);
+        const dateStr = date.slice(0, 10);
+        const dailyRecordings = allRecordings.filter((r) => {
+          if (!r.created_at) return false;
+          const recDate = typeof r.created_at === 'string' ? r.created_at.slice(0, 10) : '';
+          return recDate === dateStr;
+        });
+        
+        if (dailyRecordings.length > 1) {
+          // 保留最新的錄音，刪除其他的
+          const keepRecording = dailyRecordings[0]; // 已經按 created_at 降序排序
+          const toDelete = dailyRecordings.slice(1);
+          
+          const bucket = storage.bucket(getStorageBucketName());
+          for (const rec of toDelete) {
+            // 刪除 Firebase Storage 中的文件
+            const file = bucket.file(`recordings/${rec.filename}`);
+            await file.delete().catch(() => {});
+            // 刪除資料庫記錄
+            await deleteRecording(rec.id);
+          }
+        }
+      } catch (cleanupError) {
+        console.error('清理當天錄音失敗:', cleanupError);
+        // 不影響簽到結果，只記錄錯誤
+      }
+      
+      if (userRole === 'student') {
+        // 學生完成簽到時自動加分（如果還沒加過）
+        if (!(await checkDailyPointsAdded(req.user.id, date))) {
+          await adjustPoints(req.user.id, 1, '完成簽到', null, date);
+        }
       }
     }
     res.json({ ok: !!ok, alreadyCheckedIn: !ok });
