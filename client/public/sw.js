@@ -1,5 +1,5 @@
 // Service Worker for PWA
-const CACHE_NAME = 'bible-memorize-v3';
+const CACHE_NAME = 'bible-memorize-v4';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -37,22 +37,28 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
-  // 只處理 HTML 頁面和 manifest.json
-  if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/manifest.json') {
+  // 首頁與 index.html：網路優先（先取最新，部署後不用強制重新整理）
+  if (url.pathname === '/' || url.pathname === '/index.html') {
     event.respondWith(
-      caches.match(event.request)
+      fetch(event.request)
         .then((response) => {
-          // 返回緩存或網絡請求
-          return response || fetch(event.request).catch(() => {
-            // 如果網絡請求失敗，返回 404
-            return new Response('Not Found', { status: 404 });
-          });
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          return response;
         })
+        .catch(() => caches.match(event.request).then((r) => r || new Response('Not Found', { status: 404 })))
     );
-  } else {
-    // 對於其他請求（如 API 調用），直接從網絡獲取
     return;
   }
+  // manifest.json：可沿用快取
+  if (url.pathname === '/manifest.json') {
+    event.respondWith(
+      caches.match(event.request)
+        .then((response) => response || fetch(event.request).catch(() => new Response('Not Found', { status: 404 })))
+    );
+    return;
+  }
+  // 其他請求（如 API）不攔截，由瀏覽器直接發送
 });
 
 self.addEventListener('activate', (event) => {
