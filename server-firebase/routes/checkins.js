@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
-import { addCheckin, getCheckinsForWeek, getCheckinsForUser, getApprovalForDate, adjustPoints, checkDailyPointsAdded, cleanupDailyRecordings, getRecordingsByUser, deleteRecording } from '../db-firebase.js';
+import { addCheckin, getCheckinsForWeek, getCheckinsForUser, getApprovalForDate, adjustPoints, checkDailyPointsAdded, getRecordingsByUser, deleteRecording } from '../db-firebase.js';
 import { storage, getStorageBucketName } from '../firebase-config.js';
 
 function getISOWeek(d) {
