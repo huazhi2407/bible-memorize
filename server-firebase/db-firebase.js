@@ -161,16 +161,20 @@ export async function createRecording(userId, filename) {
 }
 
 export async function getRecordingsByUser(userId) {
+  // 不使用 orderBy，改為客戶端排序（避免 Firestore 索引問題）
   const snapshot = await db.collection(COLLECTIONS.RECORDINGS)
     .where('user_id', '==', userId)
-    .orderBy('created_at', 'desc')
     .get();
   
-  return snapshot.docs.map(doc => ({
+  const recordings = snapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
     created_at: doc.data().created_at?.toDate().toISOString(),
   }));
+  
+  // 客戶端排序：按 created_at 降序
+  recordings.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  return recordings;
 }
 
 export async function getRecordingsByUserId(userId) {
@@ -210,9 +214,8 @@ export async function getRecordingsByUserIds(userIds) {
 }
 
 export async function getAllRecordings() {
-  const snapshot = await db.collection(COLLECTIONS.RECORDINGS)
-    .orderBy('created_at', 'desc')
-    .get();
+  // 不使用 orderBy，改為客戶端排序（避免 Firestore 索引問題）
+  const snapshot = await db.collection(COLLECTIONS.RECORDINGS).get();
   
   const recordings = [];
   for (const doc of snapshot.docs) {
@@ -228,6 +231,8 @@ export async function getAllRecordings() {
     });
   }
   
+  // 客戶端排序：按 created_at 降序
+  recordings.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
   return recordings;
 }
 
