@@ -1,23 +1,30 @@
-/** ISO 週數：週一為第一天，含 1/4 的那週為第 1 週 */
+/** 回傳 ISO 星期幾：1=一～7=日 */
+function isoDayOfWeek(d) {
+  const day = d.getDay();
+  return day === 0 ? 7 : day;
+}
+
+/** ISO 週數：週一為第一天，含 1/4 的那週為第 1 週（用中午 12:00 避免午夜/DST 邊界） */
 export function getISOWeek(d) {
-  const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const jan4 = new Date(date.getFullYear(), 0, 4);
-  const isoDayJan4 = jan4.getDay() === 0 ? 7 : jan4.getDay();
-  const mondayWeek1 = new Date(date.getFullYear(), 0, 4 - (isoDayJan4 - 1));
-  const diffMs = date - mondayWeek1;
-  const diffDays = Math.floor(diffMs / 86400000);
-  if (diffDays < 0) {
-    const prevYear = date.getFullYear() - 1;
-    return getISOWeek(new Date(prevYear, 11, 31));
+  const date = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0, 0);
+  const isoDay = isoDayOfWeek(date);
+  const mondayOfThisWeek = new Date(date.getFullYear(), date.getMonth(), date.getDate() - (isoDay - 1), 12, 0, 0, 0);
+  const y = mondayOfThisWeek.getFullYear();
+  const jan4 = new Date(y, 0, 4, 12, 0, 0, 0);
+  const isoDayJan4 = isoDayOfWeek(jan4);
+  const mondayWeek1 = new Date(y, 0, 4 - (isoDayJan4 - 1), 12, 0, 0, 0);
+  if (mondayOfThisWeek < mondayWeek1) {
+    return getISOWeek(new Date(y - 1, 11, 31, 12, 0, 0, 0));
   }
+  const diffDays = Math.round((mondayOfThisWeek - mondayWeek1) / 86400000);
   return Math.floor(diffDays / 7) + 1;
 }
 
-/** 回傳該 ISO 年週的週一～週日（7 個 Date，本地時區） */
+/** 回傳該 ISO 年週的週一～週日（7 個 Date，本地時區，中午 12:00 避免 DST 邊界） */
 export function getWeekDates(year, week) {
-  const jan4 = new Date(year, 0, 4);
+  const jan4 = new Date(year, 0, 4, 12, 0, 0, 0);
   const isoDayJan4 = jan4.getDay() === 0 ? 7 : jan4.getDay();
-  const mondayWeek1 = new Date(year, 0, 4 - (isoDayJan4 - 1));
+  const mondayWeek1 = new Date(year, 0, 4 - (isoDayJan4 - 1), 12, 0, 0, 0);
   const mondayOfWeek = new Date(mondayWeek1);
   mondayOfWeek.setDate(mondayWeek1.getDate() + (week - 1) * 7);
   const out = [];
