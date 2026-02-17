@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getISOWeek, toLocalDateString } from '../utils/date';
+import { getISOWeek, toLocalDateString, formatDate } from '../utils/date';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
@@ -332,7 +332,7 @@ export default function Admin() {
             {recordings.map((r) => (
               <li key={r.id} style={{ padding: '0.75rem', background: '#161b22', borderRadius: 8, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <audio controls src={API_BASE + r.audioUrl + (token ? `?token=${encodeURIComponent(token)}` : '')} style={{ flex: '1 1 200px', minWidth: 0 }} />
-                <span style={{ color: '#8b949e', fontSize: '0.875rem' }}>{r.name}（{r.number}） · {r.created_at?.slice(0, 19).replace('T', ' ')}</span>
+                <span style={{ color: '#8b949e', fontSize: '0.875rem' }}>{r.name}（{r.number}） · {r.created_at ? formatDate(r.created_at) : ''}</span>
                 <button type="button" onClick={() => deleteRecording(r.id)} style={btnStyle('#da3633')}>刪除</button>
               </li>
             ))}
@@ -480,7 +480,10 @@ export default function Admin() {
                   {hasRecordingToday && studentRecordings.length > 0 && (
                     <div style={{ marginTop: '0.5rem' }}>
                       {studentRecordings.map((r) => (
-                        <audio key={r.id} controls src={API_BASE + r.audioUrl + (token ? `?token=${encodeURIComponent(token)}` : '')} style={{ width: '100%', marginBottom: '0.25rem' }} />
+                        <div key={r.id} style={{ marginBottom: '0.5rem' }}>
+                          <audio controls src={API_BASE + r.audioUrl + (token ? `?token=${encodeURIComponent(token)}` : '')} style={{ width: '100%', marginBottom: '0.25rem' }} />
+                          <span style={{ color: '#8b949e', fontSize: '0.75rem' }}>{r.created_at ? formatDate(r.created_at) : ''}</span>
+                        </div>
                       ))}
                     </div>
                   )}
