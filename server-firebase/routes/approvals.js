@@ -3,9 +3,10 @@ import { authMiddleware } from '../middleware/auth.js';
 import { addApproval, getApprovalForDate, getApprovalsForStudent, listStudents, addCheckin, adjustPoints, checkDailyPointsAdded, getRecordingsByUser, deleteRecording } from '../db-firebase.js';
 import { storage, getStorageBucketName } from '../firebase-config.js';
 
-/** 將日期轉換為本地日期字串 YYYY-MM-DD */
-function toLocalDateStr(dateStr) {
-  const d = new Date(dateStr + 'T12:00:00'); // 使用中午避免時區問題
+/** 將 ISO 日期字串轉換為本地日期字串 YYYY-MM-DD */
+function toLocalDateStr(isoDateStr) {
+  // isoDateStr 可能是完整的 ISO 字串（如 '2026-02-18T12:34:56.789Z'）或日期部分（如 '2026-02-18'）
+  const d = new Date(isoDateStr);
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -119,19 +120,24 @@ router.post('/reject', async (req, res) => {
     // 取得該學生指定日期的所有錄音
     const allRecordings = await getRecordingsByUser(studentId);
     const targetDate = date.slice(0, 10); // 確保是 YYYY-MM-DD 格式
+    console.log('Reject API - targetDate:', targetDate);
+    console.log('Reject API - allRecordings count:', allRecordings.length);
     const recordingsToDelete = allRecordings.filter((r) => {
       if (!r.created_at) return false;
       try {
         // 將 ISO 字串轉換為本地日期來比較
-        const recDate = new Date(r.created_at);
-        const recDateStr = toLocalDateStr(recDate.toISOString().slice(0, 10));
+        // created_at 已經是 ISO 字串（例如 '2026-02-18T12:34:56.789Z'）
+        const recDateStr = toLocalDateStr(r.created_at);
+        console.log('Reject API - comparing:', { created_at: r.created_at, recDateStr, targetDate, match: recDateStr === targetDate });
         return recDateStr === targetDate;
       } catch (e) {
+        console.error('Reject API - date parsing error:', e, r.created_at);
         // 如果日期解析失敗，嘗試直接比較字串（向後兼容）
         const recDateStr = typeof r.created_at === 'string' ? r.created_at.slice(0, 10) : '';
         return recDateStr === targetDate;
       }
     });
+    console.log('Reject API - recordingsToDelete count:', recordingsToDelete.length);
     
     // 刪除所有當天的錄音（包括 Storage 中的文件）
     const bucket = storage.bucket(getStorageBucketName());
