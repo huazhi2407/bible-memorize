@@ -226,15 +226,22 @@ export default function Admin() {
   };
 
   const rejectRecording = (studentId, date) => {
-    if (!confirm('確定要標記此錄音為不合格並刪除嗎？學生需要重新錄音。')) return;
+    console.log('rejectRecording called:', { studentId, date });
+    if (!confirm('確定要標記此錄音為不合格並刪除嗎？學生需要重新錄音。')) {
+      console.log('User cancelled');
+      return;
+    }
+    console.log('Sending reject request...');
     fetchWithAuth('/api/approvals/reject', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ studentId, date }),
     })
       .then((r) => {
+        console.log('Response status:', r.status);
         if (!r.ok) {
           return r.json().then((data) => {
+            console.error('API error:', data);
             alert(data.error || '操作失敗');
             throw new Error(data.error || '操作失敗');
           });
@@ -242,13 +249,16 @@ export default function Admin() {
         return r.json();
       })
       .then((data) => {
+        console.log('Response data:', data);
         if (data.ok) {
+          alert(`已刪除 ${data.deletedCount || 0} 筆錄音`);
           loadStudentRecordings(studentId); // 重新載入該學生的錄音
           loadStudentApproval(studentId, date); // 重新載入確認狀態
         }
       })
       .catch((err) => {
         console.error('標記不合格失敗:', err);
+        alert('操作失敗：' + (err.message || '未知錯誤'));
       });
   };
 
@@ -430,10 +440,14 @@ export default function Admin() {
                           >
                             {isApproved ? '已確認並簽到' : '確認合格並簽到'}
                           </button>
-                          {!isApproved && (
+                          {!isApproved && hasRecordingToday && (
                             <button
                               type="button"
-                              onClick={() => rejectRecording(s.id, today)}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                rejectRecording(s.id, today);
+                              }}
                               style={btnStyle('#da3633')}
                             >
                               不合格請重錄
