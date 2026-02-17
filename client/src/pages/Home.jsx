@@ -209,8 +209,17 @@ export default function Home() {
       if (!res.ok) {
         throw new Error(data.error || `上傳失敗 (${res.status})`);
       }
-      // 等待錄音列表載入完成後再設定狀態
-      await loadRecordings();
+      // 上傳成功後，立即將新錄音加入列表（避免等待載入）
+      if (data.id && data.audioUrl) {
+        setRecordings((prev) => [{
+          id: data.id,
+          filename: data.filename,
+          audioUrl: data.audioUrl,
+          created_at: data.createdAt || new Date().toISOString(),
+        }, ...prev]);
+      }
+      // 背景重新載入列表以確保同步
+      loadRecordings().catch(() => {});
       chunksRef.current = [];
       mediaRecorderRef.current = null;
       setStatus('done');
