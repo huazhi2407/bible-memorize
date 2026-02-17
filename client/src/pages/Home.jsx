@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getWeekDates, getISOWeek, formatDate, getISODayOfWeek, toLocalDateString } from '../utils/date';
 
@@ -7,6 +7,7 @@ const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 export default function Home() {
   const { user, fetchWithAuth, logout, token } = useAuth();
+  const navigate = useNavigate();
   const [recordings, setRecordings] = useState(() => []);
   const [checkinDates, setCheckinDates] = useState([]);
   const [weekYear, setWeekYear] = useState(() => {
@@ -305,6 +306,24 @@ export default function Home() {
       .then((r) => { if (r.ok) loadRecordings(); });
   }, [fetchWithAuth, loadRecordings]);
 
+  const deleteMyAccount = useCallback(() => {
+    if (!confirm('確定要刪除您的帳戶？此操作無法復原，您的所有錄音、簽到記錄和積分都會被刪除。')) return;
+    fetchWithAuth('/api/users/me', { method: 'DELETE' })
+      .then((r) => {
+        if (r.ok) {
+          logout();
+          navigate('/login', { replace: true });
+        } else {
+          return r.json().then((data) => {
+            setError(data.error || '刪除失敗');
+          });
+        }
+      })
+      .catch((err) => {
+        setError('刪除失敗：' + (err.message || err));
+      });
+  }, [fetchWithAuth, logout, navigate]);
+
   const weekDates = weekYear.week > 0 ? getWeekDates(weekYear.year, weekYear.week) : [];
   const prevWeek = () => {
     let { year, week } = weekYear;
@@ -332,7 +351,10 @@ export default function Home() {
             )}
           </p>
         </div>
-        <button type="button" onClick={logout} style={btnStyle('#21262d')}>登出</button>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button type="button" onClick={deleteMyAccount} style={btnStyle('#da3633')}>刪除我的帳戶</button>
+          <button type="button" onClick={logout} style={btnStyle('#21262d')}>登出</button>
+        </div>
       </header>
 
       {scripturePlan?.segments && (() => {

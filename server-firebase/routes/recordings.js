@@ -132,12 +132,11 @@ router.delete('/:id', async (req, res) => {
     if (!rec) return res.status(404).json({ error: '找不到錄音' });
     
     const userRole = req.user.role;
-    if (userRole === 'teacher' || userRole === 'parent') {
-      return res.status(403).json({ error: '老師/家長無權限刪除錄音' });
-    }
-    
     const isAdmin = userRole === 'admin';
-    if (!isAdmin && rec.user_id !== req.user.id) {
+    const isOwner = rec.user_id === req.user.id;
+    
+    // 權限檢查：admin 可以刪除任何錄音，其他人只能刪除自己的錄音
+    if (!isAdmin && !isOwner) {
       return res.status(403).json({ error: '無法刪除他人的錄音' });
     }
     
