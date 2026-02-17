@@ -26,16 +26,13 @@ export function getISOWeek(d) {
   return Math.floor(diffDays / 7) + 1;
 }
 
-/** 回傳該 ISO 年週的週一～週日（7 個 Date，本地時區，中午 12:00 避免 DST 邊界） */
+/** 回傳該 ISO 年週的週一～週日（7 個 Date，本地時區，中午 12:00 避免 DST 邊界，使用毫秒計算避免跨月問題） */
 export function getWeekDates(year, week) {
   const mondayWeek1 = getMondayOfWeek1(year);
-  const mondayOfWeek = new Date(mondayWeek1);
-  mondayOfWeek.setDate(mondayWeek1.getDate() + (week - 1) * 7);
+  const mondayOfWeek = new Date(mondayWeek1.getTime() + (week - 1) * 7 * MS_PER_DAY);
   const out = [];
   for (let i = 0; i < 7; i++) {
-    const d = new Date(mondayOfWeek);
-    d.setDate(mondayOfWeek.getDate() + i);
-    out.push(d);
+    out.push(new Date(mondayOfWeek.getTime() + i * MS_PER_DAY));
   }
   return out;
 }

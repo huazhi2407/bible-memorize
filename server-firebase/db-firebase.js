@@ -308,18 +308,15 @@ function getMondayOfWeek1(y) {
   return new Date(jan4.getTime() - (isoDayJan4 - 1) * MS_PER_DAY);
 }
 
-/** ISO 週：該年該週的週一（與前端 getWeekDates 一致） */
+/** ISO 週：該年該週的週一（與前端 getWeekDates 一致，使用毫秒計算避免跨月問題） */
 function getDateOfISOWeek(y, w) {
   const mondayWeek1 = getMondayOfWeek1(y);
-  const mondayOfWeek = new Date(mondayWeek1);
-  mondayOfWeek.setDate(mondayWeek1.getDate() + (w - 1) * 7);
-  return mondayOfWeek;
+  return new Date(mondayWeek1.getTime() + (w - 1) * 7 * MS_PER_DAY);
 }
 
 export async function getCheckinsForWeek(userId, year, week) {
   const start = getDateOfISOWeek(year, week);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 6);
+  const end = new Date(start.getTime() + 6 * MS_PER_DAY); // 使用毫秒計算避免跨月問題
   const startStr = toLocalDateStr(start);
   const endStr = toLocalDateStr(end);
   
