@@ -46,7 +46,9 @@ npm run start
 
 完成後開啟 **http://localhost:3001**（單一 port 提供整站）。
 
-## 部署（Render）
+## 部署
+
+### 部署到 Render
 
 1. 將專案推送到 GitHub，並確認根目錄有 `render.yaml`。
 2. 到 [Render](https://render.com) → **New** → **Blueprint**，連動 repo。
@@ -56,3 +58,14 @@ npm run start
 4. 儲存後會執行 `npm run build` 與 `npm run start`。
 
 **注意**：Render 免費方案重啟後本機磁碟會清空，錄音檔與 SQLite 資料庫會重置。若需持久化，請使用付費方案或外接資料庫／儲存。
+
+### 部署到 HuggingFace Spaces（Firebase 後端）
+
+使用 Firebase 後端版本時，可以部署到 HuggingFace Spaces：
+
+1. 前往 `server-firebase/` 目錄
+2. 參考 `server-firebase/DEPLOY-HUGGINGFACE.md` 獲取詳細部署說明
+3. 在 HuggingFace Spaces 創建新的 Docker Space
+4. 上傳代碼並設置環境變數
+
+詳細步驟請參考：[server-firebase/DEPLOY-HUGGINGFACE.md](server-firebase/DEPLOY-HUGGINGFACE.md)

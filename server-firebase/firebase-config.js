@@ -32,7 +32,11 @@ export function initFirebase() {
       if (fs.existsSync(defaultPath)) {
         serviceAccount = JSON.parse(fs.readFileSync(defaultPath, 'utf8'));
       } else {
-        throw new Error('Firebase 服務帳號未配置。請設置 FIREBASE_SERVICE_ACCOUNT 環境變量或提供 firebase-service-account.json 文件。');
+        const errorMsg = 'Firebase 服務帳號未配置。\n' +
+          '請在 HuggingFace Spaces Settings → Variables and secrets 中設置：\n' +
+          '- FIREBASE_SERVICE_ACCOUNT: 整個 Firebase 服務帳號 JSON 作為字符串\n' +
+          '或設置 FIREBASE_SERVICE_ACCOUNT_PATH 環境變量指向服務帳號文件路徑。';
+        throw new Error(errorMsg);
       }
     }
 

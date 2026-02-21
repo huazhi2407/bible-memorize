@@ -16,9 +16,9 @@ import { pointsRouter } from './routes/points.js';
 initFirebase();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 7860;
 
-// CORS 配置：允許 Vercel 前端和其他來源
+// CORS 配置：允許 Vercel 前端、HuggingFace Spaces 和其他來源
 app.use(cors({
   origin: (origin, callback) => {
     // 允許的來源列表
@@ -30,6 +30,14 @@ app.use(cors({
     
     // 允許所有 Vercel 預覽部署（bible-memorize-*.vercel.app）
     if (origin && origin.match(/^https:\/\/bible-memorize-.*\.vercel\.app$/)) {
+      return callback(null, true);
+    }
+    
+    // 允許所有 HuggingFace Spaces 域名（*.hf.space 和 huggingface.co/spaces/*）
+    if (origin && (
+      origin.match(/^https:\/\/.*\.hf\.space$/) ||
+      origin.match(/^https:\/\/huggingface\.co\/spaces\/.*$/)
+    )) {
       return callback(null, true);
     }
     
@@ -46,6 +54,28 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json());
+
+// 根路徑和健康檢查
+app.get('/', (req, res) => {
+  res.json({
+    message: '經文背誦 API 後端',
+    status: 'running',
+    version: '1.0.0',
+    endpoints: {
+      auth: '/api/auth',
+      recordings: '/api/recordings',
+      users: '/api/users',
+      checkins: '/api/checkins',
+      scripturePlans: '/api/scripture-plans',
+      approvals: '/api/approvals',
+      points: '/api/points'
+    }
+  });
+});
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 // 文件下載代理（從 Firebase Storage）- 需要身份驗證
 // 支持 Authorization header 或 token query parameter（用於 <audio> 標籤）
