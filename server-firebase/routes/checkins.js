@@ -146,7 +146,7 @@ router.get('/today-summary', async (req, res) => {
     const summary = {
       date: todayStr,
       users: Array.from(byUser.values()),
-      notCheckedIn: Array.from(byUser.values()).filter((u) => !u.hasCheckedInToday).map((u) => ({ id: u.id, name: u.name, number: u.number, role: u.role })),
+      notCheckedIn: Array.from(byUser.values()).filter((u) => !u.hasCheckedInToday && u.role !== 'admin').map((u) => ({ id: u.id, name: u.name, number: u.number, role: u.role })),
     };
     res.json(summary);
   } catch (e) {
