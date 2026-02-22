@@ -22,6 +22,7 @@ export default function Home() {
   const [points, setPoints] = useState(0);
   const [studentsRanking, setStudentsRanking] = useState([]);
   const [todayStr, setTodayStr] = useState('');
+  const [todaySummary, setTodaySummary] = useState(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
 
@@ -115,6 +116,16 @@ export default function Home() {
   }, [fetchWithAuth]);
   useEffect(() => { loadStudentsRanking(); }, [loadStudentsRanking]);
   useEffect(() => { if (status === 'done') loadStudentsRanking(); }, [status, loadStudentsRanking]);
+
+  const loadTodaySummary = useCallback(() => {
+    if (user?.role !== 'admin' && user?.role !== 'teacher' && user?.role !== 'parent') return;
+    fetchWithAuth('/api/checkins/today-summary')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setTodaySummary(data || null))
+      .catch(() => setTodaySummary(null));
+  }, [user, fetchWithAuth]);
+  useEffect(() => { loadTodaySummary(); }, [loadTodaySummary]);
+  useEffect(() => { if (status === 'done') loadTodaySummary(); }, [status, loadTodaySummary]);
 
   // 計算變數（todayStr 由 useEffect 在客戶端設定）
   const currentDateStr = todayStr || toLocalDateString(new Date());
@@ -292,6 +303,7 @@ export default function Home() {
       .then((data) => {
         if (data.ok || data.alreadyCheckedIn) {
           loadCheckins();
+          loadTodaySummary();
           if (isStudent) {
             loadPoints();
             loadStudentsRanking();
@@ -301,7 +313,7 @@ export default function Home() {
         }
       })
       .catch(() => {});
-  }, [fetchWithAuth, loadCheckins, isStudent, loadPoints, loadStudentsRanking]);
+  }, [fetchWithAuth, loadCheckins, loadTodaySummary, isStudent, loadPoints, loadStudentsRanking]);
 
   const deleteRecording = useCallback((id) => {
     if (!confirm('確定要刪除這則錄音？')) return;
@@ -516,6 +528,75 @@ export default function Home() {
         )}
         {isStudent && hasCheckedInToday && (
           <p style={{ color: '#3fb950', marginTop: '0.75rem', fontSize: '0.875rem' }}>✓ 已確認合格並自動簽到</p>
+        )}
+
+        {/* 今日每人錄音與尚未簽到（僅老師/家長/管理員） */}
+        {(user?.role === 'admin' || user?.role === 'teacher' || user?.role === 'parent') && todaySummary && (
+          <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #30363d' }}>
+            <h3 style={{ fontSize: '0.9375rem', marginBottom: '0.75rem' }}>今日每人錄音</h3>
+            <p style={{ color: '#8b949e', fontSize: '0.875rem', marginBottom: '0.75rem' }}>日期：{todaySummary.date}</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {todaySummary.users
+                .filter((u) => u.todayRecordings.length > 0)
+                .map((u) => (
+                  <div
+                    key={u.id}
+                    style={{
+                      padding: '0.75rem',
+                      background: u.hasCheckedInToday ? '#161b22' : '#1c2128',
+                      borderRadius: 8,
+                      border: '1px solid #30363d',
+                      borderLeft: u.hasCheckedInToday ? '4px solid #238636' : '4px solid #8b949e',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 600, color: '#e6edf3' }}>{u.name}</span>
+                      {u.number && <span style={{ color: '#8b949e', fontSize: '0.875rem' }}>編號 {u.number}</span>}
+                      {u.hasCheckedInToday && <span style={{ color: '#3fb950', fontSize: '0.875rem' }}>✓ 已簽到</span>}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      {u.todayRecordings.map((r) => (
+                        <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <audio
+                            controls
+                            src={API_BASE + r.audioUrl + (token ? `?token=${encodeURIComponent(token)}` : '')}
+                            style={{ flex: '1 1 200px', minWidth: 0, maxWidth: '100%' }}
+                          />
+                          <span style={{ color: '#8b949e', fontSize: '0.8125rem' }}>{formatDate(r.created_at)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+            </div>
+            {todaySummary.users.filter((u) => u.todayRecordings.length > 0).length === 0 && (
+              <p style={{ color: '#8b949e', fontSize: '0.875rem' }}>今日尚無任何人錄音</p>
+            )}
+
+            <h3 style={{ fontSize: '0.9375rem', marginTop: '1.25rem', marginBottom: '0.5rem' }}>尚未簽到</h3>
+            {todaySummary.notCheckedIn && todaySummary.notCheckedIn.length > 0 ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                {todaySummary.notCheckedIn.map((u) => (
+                  <span
+                    key={u.id}
+                    style={{
+                      padding: '0.35rem 0.65rem',
+                      background: '#21262d',
+                      borderRadius: 6,
+                      fontSize: '0.875rem',
+                      color: '#e6edf3',
+                      border: '1px solid #30363d',
+                    }}
+                  >
+                    {u.name}
+                    {u.number ? ` (${u.number})` : ''}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p style={{ color: '#3fb950', fontSize: '0.875rem' }}>今日所有人都已簽到 ✓</p>
+            )}
+          </div>
         )}
       </section>
     </div>

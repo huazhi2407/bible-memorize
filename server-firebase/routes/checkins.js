@@ -1,7 +1,14 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
-import { addCheckin, getCheckinsForWeek, getCheckinsForUser, getApprovalForDate, adjustPoints, checkDailyPointsAdded, getRecordingsByUser, deleteRecording } from '../db-firebase.js';
+import { addCheckin, getCheckinsForWeek, getCheckinsForUser, getCheckinsByDate, getApprovalForDate, adjustPoints, checkDailyPointsAdded, getRecordingsByUser, getRecordingsByUserIds, deleteRecording, listUsers } from '../db-firebase.js';
 import { storage, getStorageBucketName } from '../firebase-config.js';
+
+function toLocalDateStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 function getISOWeek(d) {
   d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
@@ -91,6 +98,60 @@ router.get('/all', async (req, res) => {
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: '取得簽到失敗' });
+  }
+});
+
+// 今日簽到與錄音彙總（僅 admin / teacher / parent）
+router.get('/today-summary', async (req, res) => {
+  try {
+    const role = req.user?.role;
+    if (role !== 'admin' && role !== 'teacher' && role !== 'parent') {
+      return res.status(403).json({ error: '需要老師、家長或管理員權限' });
+    }
+    const todayStr = toLocalDateStr(new Date());
+    const users = await listUsers();
+    const userIds = users.map((u) => u.id);
+    const [checkedInUserIds, allRecordingsRaw] = await Promise.all([
+      getCheckinsByDate(todayStr),
+      userIds.length === 0 ? Promise.resolve([]) : getRecordingsByUserIds(userIds),
+    ]);
+    const allRecordingsToday = allRecordingsRaw.filter((r) => {
+      if (!r.created_at) return false;
+      const recDate = typeof r.created_at === 'string' ? r.created_at.slice(0, 10) : '';
+      return recDate === todayStr;
+    });
+    const checkedInSet = new Set(checkedInUserIds);
+    const byUser = new Map();
+    for (const u of users) {
+      byUser.set(u.id, {
+        id: u.id,
+        name: u.name,
+        number: u.number || '',
+        role: u.role,
+        hasCheckedInToday: checkedInSet.has(u.id),
+        todayRecordings: [],
+      });
+    }
+    for (const r of allRecordingsToday) {
+      const row = byUser.get(r.user_id);
+      if (row) {
+        row.todayRecordings.push({
+          id: r.id,
+          filename: r.filename,
+          audioUrl: `/storage/${r.filename}`,
+          created_at: r.created_at,
+        });
+      }
+    }
+    const summary = {
+      date: todayStr,
+      users: Array.from(byUser.values()),
+      notCheckedIn: Array.from(byUser.values()).filter((u) => !u.hasCheckedInToday).map((u) => ({ id: u.id, name: u.name, number: u.number, role: u.role })),
+    };
+    res.json(summary);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: '取得今日彙總失敗' });
   }
 });
 

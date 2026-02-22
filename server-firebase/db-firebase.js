@@ -341,6 +341,14 @@ export async function getCheckinsForUser(userId) {
   return dates.sort();
 }
 
+/** 取得某日已簽到的所有 user_id 列表 */
+export async function getCheckinsByDate(dateStr) {
+  const snapshot = await db.collection(COLLECTIONS.CHECKINS)
+    .where('date', '==', dateStr)
+    .get();
+  return snapshot.docs.map(doc => doc.data().user_id);
+}
+
 // ========== 經文計劃相關 ==========
 
 export async function getScripturePlan(year, week) {
