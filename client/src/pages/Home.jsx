@@ -205,21 +205,68 @@ export default function Home() {
     }
   }, []);
 
-  const stopAndUpload = useCallback(async () => {
+  const pauseRecording = useCallback(() => {
     const recorder = mediaRecorderRef.current;
     if (!recorder || status !== 'recording') return;
     const stream = recorder.stream;
+    recorder.stop();
+    stream.getTracks().forEach((t) => t.stop());
+    mediaRecorderRef.current = null;
+    setStatus('paused');
+    setError('');
+  }, [status]);
+
+  const resumeRecording = useCallback(async () => {
+    if (status !== 'paused') return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mediaRecorderRef.current = recorder;
+      recorder.start(200);
+      setStatus('recording');
+      setError('');
+    } catch (err) {
+      setError('無法取得麥克風：' + (err.message || err));
+    }
+  }, [status]);
+
+  const discardRecording = useCallback(() => {
+    if (mediaRecorderRef.current) {
+      try {
+        const rec = mediaRecorderRef.current;
+        rec.stream.getTracks().forEach((t) => t.stop());
+        rec.stop();
+      } catch (_) {}
+      mediaRecorderRef.current = null;
+    }
+    chunksRef.current = [];
+    setStatus('idle');
+    setError('');
+  }, []);
+
+  const stopAndUpload = useCallback(async () => {
+    const recorder = mediaRecorderRef.current;
+    const isPaused = status === 'paused';
+    if (!isPaused && (!recorder || status !== 'recording')) return;
+    if (isPaused && (!chunksRef.current || chunksRef.current.length === 0)) {
+      setError('尚無錄音內容，請先錄音再儲存');
+      return;
+    }
+    const stream = recorder?.stream;
     setStatus('uploading');
     setError('');
     try {
-      // 等待錄音停止並關閉 stream
-      await new Promise((resolve) => {
-        recorder.onstop = () => {
-          stream.getTracks().forEach((t) => t.stop());
-          resolve();
-        };
-        recorder.stop();
-      });
+      if (recorder && stream) {
+        await new Promise((resolve) => {
+          recorder.onstop = () => {
+            stream.getTracks().forEach((t) => t.stop());
+            resolve();
+          };
+          recorder.stop();
+        });
+        mediaRecorderRef.current = null;
+      }
       const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
       if (blob.size === 0) {
         throw new Error('錄音文件為空，請重新錄音');
@@ -434,7 +481,19 @@ export default function Home() {
         <h2 style={{ fontSize: '1rem', marginBottom: '0.75rem' }}>錄音</h2>
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
           {status === 'idle' && <button type="button" onClick={startRecording} style={btnStyle('#238636')}>開始錄音</button>}
-          {status === 'recording' && <button type="button" onClick={stopAndUpload} style={btnStyle('#da3633')}>停止並儲存</button>}
+          {status === 'recording' && (
+            <>
+              <button type="button" onClick={pauseRecording} style={btnStyle('#f59e0b')}>暫停</button>
+              <button type="button" onClick={stopAndUpload} style={btnStyle('#da3633')}>停止並儲存</button>
+            </>
+          )}
+          {status === 'paused' && (
+            <>
+              <button type="button" onClick={resumeRecording} style={btnStyle('#238636')}>繼續錄音</button>
+              <button type="button" onClick={stopAndUpload} style={btnStyle('#da3633')}>停止並儲存</button>
+              <button type="button" onClick={discardRecording} style={btnStyle('#21262d')}>放棄</button>
+            </>
+          )}
           {status === 'uploading' && <span style={{ color: '#8b949e' }}>上傳中…</span>}
           {(status === 'done' || status === 'error') && !hasRecordingToday && <button type="button" onClick={() => setStatus('idle')} style={btnStyle('#21262d')}>再錄一次</button>}
         </div>
